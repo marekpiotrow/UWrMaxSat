@@ -72,7 +72,7 @@ int      opt_cpu_lim       = INT32_MAX;
 int      opt_mem_lim       = INT32_MAX;
 
 int      opt_minimization  = -1; // -1 = to be set, 0 = sequential. 1 = alternating, 2 - binary
-int      opt_seq_thres     = 96;
+int      opt_seq_thres     = -1; // -1 = to be set, 3 = maxsat default, 96 = PB default
 int      opt_bin_percent   = 65;
 bool     opt_maxsat_msu    = true;
 double   opt_unsat_cpu     = 500; // in seconds
@@ -80,6 +80,7 @@ bool     opt_lexicographic = false;
 bool     opt_to_bin_search = true;
 bool     opt_maxsat_prepr  = true;
 bool     opt_use_maxpre    = false;
+bool     opt_reuse_sorters = true;
 #ifdef MAXPRE
 char     opt_maxpre_str[80]= "[bu]#[buvsrgc]";
 int      opt_maxpre_time   = 0;
@@ -141,7 +142,7 @@ cchar* doc =
     "Output options:\n"
     "  -s -satlive   Turn off SAT competition output.\n"
     "  -a -ansi      Turn off ANSI codes in output.\n"
-    "  -v0,-v1,-v2   Set verbosity level (1 default)\n"
+    "  -v0,...,-v3   Set verbosity level (1 default)\n"
     "  -cnf=<file>   Write SAT problem to a file. Trivial UNSAT => no file written.\n"
     "  -nm -no-model Supress model output.\n"
     "  -bm -bin-model Output MaxSAT model as a binary (0-1) string.\n"
@@ -243,9 +244,9 @@ void parseOptions(int argc, char** argv)
             else if (oneof(arg, "bin"       )) opt_minimization =  2;
 
             else if (oneof(arg, "of,old-fmt" )) opt_old_format = true;
-            else if (oneof(arg, "m,maxsat"  )) opt_maxsat  = true, opt_seq_thres = 3;
+            else if (oneof(arg, "m,maxsat"  )) opt_maxsat  = true;
             else if (oneof(arg, "lex-opt"   )) opt_lexicographic = true;
-            else if (oneof(arg, "no-bin"    )) opt_to_bin_search = false;
+            else if (oneof(arg, "no-bin"    )) opt_to_bin_search = opt_reuse_sorters = false;
             else if (oneof(arg, "no-ms-pre" )) opt_maxsat_prepr = false;
 #ifdef MAXPRE
             else if (oneof(arg, "maxpre" ))    opt_use_maxpre = true;
@@ -256,6 +257,7 @@ void parseOptions(int argc, char** argv)
             else if (oneof(arg, "v0"        )) opt_verbosity = 0;
             else if (oneof(arg, "v1"        )) opt_verbosity = 1;
             else if (oneof(arg, "v2"        )) opt_verbosity = 2;
+            else if (oneof(arg, "v3"        )) opt_verbosity = 3;
             else if (strncmp(arg, "-sa", 3 ) == 0) {
                 if (arg[3] == '2') opt_shared_fmls = true;
             }
@@ -596,18 +598,20 @@ int main(int argc, char** argv)
     }
     increase_stack_size(256); // to at least 256MB - M. Piotrow 16.10.2017
     if (opt_maxsat || opt_input != NULL && strcmp(opt_input+strlen(opt_input)-4, "wcnf") == 0) {
-        opt_maxsat = true; opt_seq_thres = 3;
+        opt_maxsat = true; 
         if (opt_minimization < 0) opt_minimization = 1; // alt (unsat based) algorithm
         if (opt_verbosity >= 1) reportf("Parsing MaxSAT file...\n");
         parse_WCNF_file(opt_input, *pb_solver);
         if (opt_convert == ct_Undef) opt_convert = ct_Sorters;
         if (opt_maxsat_msu) {
+            if (opt_seq_thres < 0) opt_seq_thres = 3;
             pb_solver->maxsat_solve(convert(opt_command));
         } else {
             for (int i = pb_solver->soft_cls.size() - 1; i >= 0; i--)
                 if (pb_solver->soft_cls[i].snd->size() > 1)
                     pb_solver->sat_solver.addClause(*pb_solver->soft_cls[i].snd);
             if (opt_minimization < 0) opt_minimization = 2; // bin (sat/unsat based) algorithm
+            if (opt_seq_thres < 0) opt_seq_thres = 96;
             pb_solver->solve(convert(opt_command));
         }
     } else {
@@ -621,6 +625,7 @@ int main(int argc, char** argv)
         if (opt_convert == ct_Undef) opt_convert = ct_Mixed;
         if (!opt_maxsat_msu) {
             if (opt_minimization < 0) opt_minimization = 2; // bin (sat/unsat based) algorithm
+            if (opt_seq_thres < 0) opt_seq_thres = 96;
             pb_solver->solve(convert(opt_command));
         } else {
             if (pb_solver->goal != NULL) {
@@ -631,7 +636,7 @@ int main(int argc, char** argv)
                 }
                 delete pb_solver->goal; pb_solver->goal = NULL;
             }
-            opt_maxsat = true;
+            opt_maxsat = true; if (opt_seq_thres < 0) opt_seq_thres = 3;
             if (opt_minimization < 0) opt_minimization = 1; // alt (unsat based) algorithm
             pb_solver->maxsat_solve(convert(opt_command));
         }

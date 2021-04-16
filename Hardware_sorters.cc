@@ -18,6 +18,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 #include "Hardware.h"
+#include "Hardware_reuse_sorters.h"
 
 void encodeBySorter(vec<Formula>& vars, int max_sel, int ineq);
 void encodeByMerger(const vec<Formula>& in1, const vec<Formula>& in2, vec<Formula>& outvars, unsigned k, int ineq);
@@ -39,8 +40,9 @@ macro Formula operator && (Formula f, Formula g)
 macro Formula operator || (Formula f, Formula g) {
     return ~(~f && ~g); }
 
-static void oddEvenSelect(vec<Formula>& vars, unsigned k, int ineq);
-static void splitAndSortSubsequences(vec<Formula>& vars, vec<int>& positions, unsigned k, int ineq);
+       void oddEvenSelect(vec<Formula>& vars, unsigned k, int ineq);
+       void splitAndSortSubsequences(vec<Formula>& vars, vec<int>& positions, unsigned k, int ineq);
+       void oddEvenMultiMerge(vec<Formula>& vars, vec<int>& positions, unsigned k, int ineq);
 static void oddEvenMerge(vec<Formula> const in[4], vec<Formula>& outvars, unsigned int k, int ineq);
 static void oddEvenCombine(const vec<Formula>& x, const vec<Formula>& y, vec<Formula>& outvars, unsigned k);
 static void oddEven4Combine(vec<Formula> const& x, vec<Formula> const& y, vec<Formula>& outvars, unsigned k, int ineq);
@@ -56,10 +58,19 @@ static void directCardClauses(const vec<Formula>& invars, unsigned start,
 
 void encodeBySorter(vec<Formula>& vars, int max_sel, int ineq)
 {
-    int k = opt_shared_fmls && !(opt_maxsat && (opt_minimization != 1 || max_sel * 1000 < vars.size())) || 
-                  max_sel < 0 || max_sel >= vars.size() ? vars.size() : max_sel;
+    int n = vars.size();
+    int k = opt_shared_fmls && !(opt_maxsat && (opt_minimization != 1 || max_sel * 1000 < n)) || 
+                  max_sel < 0 || max_sel >= n ? n : max_sel;
+    if ((int)k > n) k = n;
+    if (k == 0) { vars.clear(); return; }
+    if (k == 1) { directSort(vars, k, ineq); return; }
 
-    oddEvenSelect(vars, k, ineq);
+    extern bool opt_reuse_sorters;
+    if (opt_reuse_sorters) {
+        static ReuseSorters reuse_sort;
+        reuse_sort.encodeBySorter(vars, k, ineq);
+    } else
+        oddEvenSelect(vars, k, ineq);
 }
 
 void encodeByMerger(const vec<Formula>& in1, const vec<Formula>& in2, vec<Formula>& outvars, unsigned k, int ineq)
@@ -92,24 +103,26 @@ void encodeByMerger(const vec<Formula>& in1, const vec<Formula>& in2, vec<Formul
  
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-static void oddEvenSelect(vec<Formula>& vars, unsigned k, int ineq)
+void oddEvenSelect(vec<Formula>& vars, unsigned k, int ineq)
 {
-    int n = vars.size();
-
-    if ((int)k > n) k = n;
-    if (k == 0) { vars.clear(); return; }
-    if (k == 1) { directSort(vars, k, ineq); return; }
 
     vec<int> positions;
 
     splitAndSortSubsequences(vars, positions, k, ineq);
-    n = vars.size();
+    oddEvenMultiMerge(vars, positions, k, ineq);
+}
 
+void oddEvenMultiMerge(vec<Formula>& vars, vec<int>& positions, unsigned k, int ineq)
+{
+    int n = vars.size();
+    // subsequences are of length positions[i]-positions[i-1], i=1,..; lengthes are in nonincreasing order
     if (positions.size() > 2) {
         // in loop: merge each 4 (or less) consequtive subsequences into one and select at most k largest items until one subsequence remains
-        for (int seq_to_merge = positions.size() - 1; seq_to_merge > 1; seq_to_merge = (seq_to_merge+3)/4) {
-            int step = 4, next = 0;
-            for (int i = 0; i < seq_to_merge; i += step) {
+        for (int next_to_merge = 0, seq_to_merge = positions.size() - 1; seq_to_merge > 1; seq_to_merge = next_to_merge) {
+            int step = 4, skip = max(seq_to_merge - step, 0);
+            while (skip > 0 && positions[skip] - positions[skip-1] < positions[skip+step] - positions[skip]) skip--;
+            next_to_merge = skip;
+            for (int i = skip; i < seq_to_merge; i += step) {
                 vec<Formula> invars[4], outvars;
                 int tlength = 0;
                 if (seq_to_merge - i == 5 /*|| seq_to_merge - i == 6*/) step = 3;
@@ -130,15 +143,15 @@ static void oddEvenSelect(vec<Formula>& vars, unsigned k, int ineq)
 		    oddEvenMerge(invars, outvars, k, ineq);
                 for (int p = positions[i], len = min((int)k, outvars.size()), j = 0; j < len; j++, p++) 
                     vars[p] = outvars[j];
-                positions[next++] = positions[i]; 
+                positions[next_to_merge++] = positions[i]; 
             }
-            positions[next] = n;
+            positions[next_to_merge] = n;
         }
     }
     vars.shrink(vars.size() - k);
 }
 
-static void splitAndSortSubsequences(vec<Formula>& vars, vec<int>& positions, unsigned k, int ineq)
+void splitAndSortSubsequences(vec<Formula>& vars, vec<int>& positions, unsigned k, int ineq)
 {
     int n = vars.size(), max_len = 0;
     int dir_sort_size = k <= 2 ? 7 : 5;
