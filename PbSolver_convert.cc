@@ -23,13 +23,15 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "PbSolver.h"
 #include "Hardware.h"
-
+//#include "Sort.h"
+#include<algorithm>
 //-------------------------------------------------------------------------------------------------
 void    linearAddition (const Linear& c, vec<Formula>& out);        // From: PbSolver_convertAdd.C
 Formula buildConstraint(const Linear& c, int max_cost = INT_MAX);   // From: PbSolver_convertSort.C
 Formula convertToBdd   (const Linear& c, int max_cost = INT_MAX);   // From: PbSolver_convertBdd.C
 //-------------------------------------------------------------------------------------------------
 
+bool cmpLT(Linear *p, Linear *q) { return p != NULL && (q == NULL || p->size < q->size); }
 
 bool PbSolver::convertPbs(bool first_call)
 {
@@ -43,6 +45,9 @@ bool PbSolver::convertPbs(bool first_call)
             sat_solver.addEmptyClause();
             return false;
         }
+        extern bool opt_reuse_sorters;
+        if (opt_reuse_sorters)
+            std::stable_sort(&constrs[0], &constrs[0]+constrs.size(), cmpLT);
     }
 
     for (int i = 0; i < constrs.size(); i++) {

@@ -635,6 +635,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 continue;
             } else harden_soft_cls(assump_ps, assump_Cs);
             if (opt_minimization == 0 || best_goalvalue - LB_goalvalue < opt_seq_thres) {
+                opt_minimization = 0;
                 assump_lit = (assump_ps.size() == 0 ? lit_Undef : mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
                 try_lessthan = best_goalvalue;
             } else {
@@ -652,7 +653,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             convertPbs(false);
         }
       } else { // UNSAT returned
-        if (assump_ps.size() == 0 && assump_lit == lit_Undef) break;
+        if (assump_ps.size() == 0 && assump_lit == lit_Undef || 
+            opt_minimization == 0 && sat_solver.conflict.size() == 1 && sat_solver.conflict[0] == ~assump_lit) break;
         {
         Minisat::vec<Lit> core_mus;
         if (opt_core_minimization) {
@@ -737,6 +739,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             assump_lit = lit_Undef;
             try_lessthan = goal_diff + 2;
 	} else if (opt_minimization == 0 || best_goalvalue == Int_MAX || best_goalvalue - LB_goalvalue < opt_seq_thres) {
+            if (best_goalvalue != Int_MAX) opt_minimization = 0;
             assump_lit = (assump_ps.size() == 0 ? lit_Undef : mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
 	    try_lessthan = (best_goalvalue != Int_MAX ? best_goalvalue : UB_goalvalue+1);
 	} else {

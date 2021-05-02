@@ -126,6 +126,7 @@ public:
                 //, stats(sat_solver.stats_ref())
                 , declared_n_vars(-1)
                 , declared_n_constrs(-1)
+                , totalSorters(0), totalSorterInputs(0.0), totalReusedInputs(0.0), totalReusedPercent(0.0)
                 , best_goalvalue(Int_MAX)
                 , asynch_interrupt(false)
                 , cpu_interrupt(false)
@@ -152,6 +153,9 @@ public:
     int     declared_n_constrs;         // Number of constraints declared in file header (-1 = not specified).
     int     pb_n_vars;                  // Actual number of variables (before clausification).
     int     pb_n_constrs;               // Actual number of constraints (before clausification).
+
+    int     totalSorters;               // The total number of encoded sorters.
+    double  totalSorterInputs, totalReusedInputs, totalReusedPercent; // Counters to print statistics of the reuse of encoded sorters. 
 
     Map<cchar*, int>    name2index;
     vec<cchar*>         index2name;

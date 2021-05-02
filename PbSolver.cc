@@ -760,6 +760,8 @@ void PbSolver::printStats()
             printf("c Constr Enc: Srt/BDD/Add: %llu %llu %llu\n", srtEncodings, bddEncodings, addEncodings);
         if (srtOptEncodings != 0 || bddOptEncodings != 0 || addOptEncodings != 0)
             printf("c OptExp Enc: Srt/BDD/Add: %llu %llu %llu\n", srtOptEncodings, bddOptEncodings, addOptEncodings);
+        if (totalSorters > 0 && totalReusedInputs > 0.0)
+            printf("c Reused sorter inputs   : %.0f of %.0f inputs (%.2f%% in avg) in %d sorters\n", totalReusedInputs, totalSorterInputs, totalReusedInputs*100.0/totalSorterInputs, totalSorters); 
         statsPrinted = true;
     }
 }
