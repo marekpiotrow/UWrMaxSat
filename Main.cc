@@ -515,7 +515,7 @@ static void SIGINT_handler(int /*signum*/) {
     reportf("*** INTERRUPTED ***\n");
     //SatELite::deleteTmpFiles();
     fflush(stdout);
-    _exit(0); }     // (using 'exit()' rather than '_exit()' sometimes causes the solver to hang (why?))
+    quick_exit(0); }
 
 
 static void SIGTERM_handler(int signum) {
@@ -529,7 +529,7 @@ static void SIGTERM_handler(int signum) {
     handlerOutputResult(*pb_solver, false);
     //SatELite::deleteTmpFiles();
     //fflush(stdout);
-    _exit(0);
+    quick_exit(0);
 }
 
 static void increase_stack_size(int new_size) // M. Piotrow 16.10.2017
@@ -604,7 +604,7 @@ int main(int argc, char** argv)
         parse_WCNF_file(opt_input, *pb_solver);
         if (opt_convert == ct_Undef) opt_convert = ct_Sorters;
         if (opt_maxsat_msu) {
-            if (opt_seq_thres < 0) opt_seq_thres = 3;
+            if (opt_seq_thres < 0) opt_seq_thres = 4;
             pb_solver->maxsat_solve(convert(opt_command));
         } else {
             for (int i = pb_solver->soft_cls.size() - 1; i >= 0; i--)
@@ -644,7 +644,7 @@ int main(int argc, char** argv)
                 }
                 delete pb_solver->goal; pb_solver->goal = NULL;
             }
-            opt_maxsat = true; if (opt_seq_thres < 0) opt_seq_thres = 3;
+            opt_maxsat = true; if (opt_seq_thres < 0) opt_seq_thres = 4;
             if (opt_minimization < 0) opt_minimization = 1; // alt (unsat based) algorithm
             pb_solver->maxsat_solve(convert(opt_command));
         }
@@ -668,7 +668,7 @@ int main(int argc, char** argv)
     else if (opt_command == cmd_FirstSolution)
         outputResult(*pb_solver, false);
 
-    exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
+    quick_exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
     
   } catch (Minisat::OutOfMemoryException&){
         if (opt_verbosity >= 1) {
