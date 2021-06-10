@@ -65,6 +65,7 @@ extern double   opt_unsat_cpu;
 extern bool     opt_lexicographic;
 extern bool     opt_to_bin_search;
 extern bool     opt_maxsat_prepr;
+extern uint64_t opt_unsat_conflicts;
 
 
 // -- files:

@@ -75,12 +75,13 @@ int      opt_minimization  = -1; // -1 = to be set, 0 = sequential. 1 = alternat
 int      opt_seq_thres     = -1; // -1 = to be set, 3 = maxsat default, 96 = PB default
 int      opt_bin_percent   = 65;
 bool     opt_maxsat_msu    = true;
-double   opt_unsat_cpu     = 500; // in seconds
+double   opt_unsat_cpu     = 50; // in seconds
 bool     opt_lexicographic = false;
 bool     opt_to_bin_search = true;
 bool     opt_maxsat_prepr  = true;
 bool     opt_use_maxpre    = false;
 bool     opt_reuse_sorters = true;
+uint64_t opt_unsat_conflicts = 5000000;
 #ifdef MAXPRE
 char     opt_maxpre_str[80]= "[bu]#[buvsrgc]";
 int      opt_maxpre_time   = 0;
@@ -229,7 +230,8 @@ void parseOptions(int argc, char** argv)
             else if (strncmp(arg, "-base-max=",   10) == 0) opt_base_max   = atoi(arg+10); 
             else if (strncmp(arg, "-bin-split=",  11) == 0) opt_bin_percent= atoi(arg+11); 
             else if (strncmp(arg, "-seq-thres=",  11) == 0) opt_seq_thres  = atoi(arg+11);
-            else if (strncmp(arg, "-unsat-cpu=",  11) == 0) opt_unsat_cpu  = atoi(arg+11);
+            else if (strncmp(arg, "-unsat-cpu=",  11) == 0) opt_unsat_cpu  = atoi(arg+11), 
+                                                            opt_unsat_conflicts = opt_unsat_cpu * 100;
             //(end)
 
             else if (oneof(arg, "1,first"   )) opt_command = cmd_FirstSolution;

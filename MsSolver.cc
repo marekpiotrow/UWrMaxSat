@@ -465,15 +465,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             multi_level_opt.push(sum < sorted_assump_Cs[j]);
             if (multi_level_opt.last()) ml_opt++;
         }
-        /*weight_t rgcd = sorted_assump_Cs.last();
-        for (int i = multi_level_opt.size()-1; i > 0; i--) {
-            rgcd = gcd(sorted_assump_Cs[i], rgcd);
-            if (sum_sorted_soft_cls[i].fst <= rgcd) {
-                if (!multi_level_opt[i] && opt_verbosity >= 1)
-                    reportf("Generalized BMO found and can be done.\n");
-                multi_level_opt[i] |= 2;
-            }
-        }*/
         extern void separationIndex(const vec<weight_t>& cs, vec<int>& separation_points);
         vec<int> gbmo_points; // generalized Boolean multilevel optimization points (GBMO)
         separationIndex(sortedCs, gbmo_points); // find GBMO
@@ -510,6 +501,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     lbool status;
     while (1) {
       if (use_base_assump) for (int i = 0; i < base_assump.size(); i++) assump_ps.push(base_assump[i]);
+      if (opt_minimization == 1 && opt_to_bin_search && sat_solver.conflicts < opt_unsat_conflicts)
+          sat_solver.setConfBudget(opt_unsat_conflicts - sat_solver.conflicts);
+      else sat_solver.budgetOff();
       status = 
           base_assump.size() == 1 && base_assump[0] == assump_lit ? l_True :
           base_assump.size() == 1 && base_assump[0] == ~assump_lit ? l_False :
@@ -529,6 +523,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
       }
       if (status  == l_Undef) {
         if (asynch_interrupt) { reportf("*** Interrupted ***\n"); break; }
+        if (opt_minimization == 1 && opt_to_bin_search && sat_solver.conflicts >= opt_unsat_conflicts) goto SwitchSearchMethod;
       } else if (status == l_True) { // SAT returned
         if (opt_minimization == 1 && opt_delay_init_constraints) {
             opt_delay_init_constraints = false;
@@ -846,8 +841,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                     assump_ps.size(), sorted_assump_Cs.size(), top_for_strat, toString(sorted_assump_Cs.size() > 0 ? sorted_assump_Cs.last() : 0)); xfree(t); }
         if (opt_minimization == 2 && opt_verbosity == 1 && use_base_assump) {
             char *t; reportf("Lower bound  = %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
+SwitchSearchMethod:        
         if (opt_minimization == 1 && opt_to_bin_search && LB_goalvalue + 5 < UB_goalvalue &&
-                cpuTime() >= opt_unsat_cpu && sat_solver.conflicts > opt_unsat_cpu * 100) {
+                cpuTime() >= opt_unsat_cpu && sat_solver.conflicts > opt_unsat_conflicts) {
             int cnt = 0;
             for (int j = 0, i = 0; i < psCs.size(); i++) {
                 const Int &w = soft_cls[psCs[i].snd].fst;
@@ -1074,7 +1070,7 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
                 else {
                     cls.push(assump_ps[ind[i]]); //~r);
                     assump_Cs[ind[i]] -= min_Cs;
-                    if (assump_Cs[i] < max_assump_Cs) {
+                    if (assump_Cs[ind[i]] < max_assump_Cs) {
                         delayed_assump.push(Pair_new(assump_Cs[ind[i]], assump_ps[ind[i]]));
                         delayed_assump_sum += assump_Cs[ind[i]];
                         assump_Cs[ind[i]] = - assump_Cs[ind[i]];
