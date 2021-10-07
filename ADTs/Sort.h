@@ -30,7 +30,7 @@ Template based sorting routines: sort, sortUnique (remove duplicates). Can be ap
 
 //#include <cstdlib>
 
-
+namespace Sort {
 //=================================================================================================
 
 
@@ -59,14 +59,14 @@ void selectionSort(T* array, int size, LessThan lt)
     }
 }
 template <class T> static inline void selectionSort(T* array, int size) {
-    selectionSort(array, size, LessThan_default<T>()); }
+    Sort::selectionSort(array, size, LessThan_default<T>()); }
 
 
 template <class T, class LessThan>
 void sort(T* array, int size, LessThan lt, double& seed)
 {
     if (size <= 15)
-        selectionSort(array, size, lt);
+        Sort::selectionSort(array, size, lt);
 
     else{
         T           pivot = array[irand(seed, size)];
@@ -83,14 +83,14 @@ void sort(T* array, int size, LessThan lt, double& seed)
             tmp = array[i]; array[i] = array[j]; array[j] = tmp;
         }
 
-        sort(array    , i     , lt, seed);
-        sort(&array[i], size-i, lt, seed);
+        Sort::sort(array    , i     , lt, seed);
+        Sort::sort(&array[i], size-i, lt, seed);
     }
 }
 template <class T, class LessThan> void sort(T* array, int size, LessThan lt) {
-    double  seed = 91648253; sort(array, size, lt, seed); }
+    double  seed = 91648253; Sort::sort(array, size, lt, seed); }
 template <class T> static inline void sort(T* array, int size) {
-    sort(array, size, LessThan_default<T>()); }
+    Sort::sort(array, size, LessThan_default<T>()); }
 
 
 template <class T, class LessThan>
@@ -101,7 +101,7 @@ void sortUnique(T* array, int& size, LessThan lt)
 
     if (size == 0) return;
 
-    sort(array, size, lt);
+    Sort::sort(array, size, lt);
 
     i    = 1;
     last = array[0];
@@ -122,9 +122,9 @@ template <class T> static inline void sortUnique(T* array, int& size) {
 
 
 template <class T, class LessThan> void sort(vec<T>& v, LessThan lt) {
-    sort((T*)v, v.size(), lt); }
+    Sort::sort((T*)v, v.size(), lt); }
 template <class T> void sort(vec<T>& v) {
-    sort(v, LessThan_default<T>()); }
+    Sort::sort(v, LessThan_default<T>()); }
 
 
 template <class T, class LessThan> void sortUnique(vec<T>& v, LessThan lt) {
@@ -138,4 +138,5 @@ template <class T> void sortUnique(vec<T>& v) {
 
 
 //=================================================================================================
+}
 #endif

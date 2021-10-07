@@ -42,6 +42,8 @@ class IntLitQueue {
 
     bool empty() { return heap.size() <= 1; }
 
+    const vec<Pair<Int, Lit> >& getHeap() const { return heap; }
+
     void clear() { heap.shrink(heap.size() - 1); }
 
     const Pair<Int, Lit>& top() { return heap[1]; }
@@ -75,6 +77,13 @@ class IntLitQueue {
 
 } ;
 
+#ifdef USE_SCIP
+//#include <vector>
+//#include <algorithm>
+#include <scip/scip.h>
+#include <scip/scipdefplugins.h>
+#endif
+
 class MsSolver : public PbSolver {
   public:
     MsSolver(bool use_preprocessing = false) : 
@@ -97,8 +106,14 @@ class MsSolver : public PbSolver {
                 for (int i = 0; i < ps.size(); i++) ps_copy->push(ps[i]); 
                 soft_cls.push(Pair_new(weight, ps_copy)); }
 
-    void    harden_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs);
+    void    harden_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs, vec<weight_t>& sorted_assump_Cs, IntLitQueue& delayed_assump, Int& delayed_assump_sum);
     void    optimize_last_constraint(vec<Linear*>& constrs, Minisat::vec<Lit>& assump_ps, Minisat::vec<Lit>& new_assump);
+
+#ifdef USE_SCIP
+    bool scip_solve(const Minisat::vec<Lit> *assump_ps, const vec<Int> *assump_Cs, const IntLitQueue *delayed_assump,
+            bool weighted_instance, int sat_orig_vars, int sat_orig_cls);
+#endif    
+
     void    maxsat_solve(solve_Command cmd = sc_Minimize); 
     void    preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs, const Lit max_assump, const Int& max_assump_Cs, 
                                            IntLitQueue& delayed_assump, Int& delayed_assump_sum);

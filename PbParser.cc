@@ -296,6 +296,11 @@ static void parse_p_line(B& in, S& solver, bool& wcnf_format, Int& hard_bound)
 
     n_constrs = toint(parseInt(in));
 
+    if (opt_use_maxpre && n_constrs >= 1000000) {
+        opt_use_maxpre = false;
+        reportf("MaxPre switched off due to a huge number of constraints (>1000000)\n");
+    }
+
     skipWhitespace(in);
     if (*in >= '0' && *in <= '9' || *in == '+') 
         hard_bound = parseInt(in);
@@ -453,7 +458,14 @@ static bool parse_wcnfs(B& in, S& solver, bool wcnf_format, Int hard_bound)
                 solver.storeSoftClause(ps, (int64_t)weights[i]);
             }
         }
-        clauses.clear(); weights.clear();
+        if (clauses.size() == 0) {
+            solver.getVar("1");
+            ps.clear();
+            ps.push(mkLit(0, false)); ps.push(mkLit(0, true)); solver.addClause(ps);
+            ps.pop(); solver.storeSoftClause(ps,1);
+            if (!opt_maxsat_msu) gps.push(mkLit(0,true)), gCs.push(1);
+        } else
+            clauses.clear(), weights.clear();
     }
 #endif
     if (gvars == 0 && !opt_maxsat_msu) {

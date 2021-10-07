@@ -1,10 +1,11 @@
 BUILD_DIR?=build
 MAXPRE?=-D MAXPRE
-BIGWEIGHTS?=-D BIG_WEIGHTS
+USESCIP?=#-D USE_SCIP -pthread
+BIGWEIGHTS?=#-D BIG_WEIGHTS
 MINISATP_RELSYM?=
-MINISATP_REL?=-std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CRYPTOMS   $(MAXPRE) $(BIGWEIGHTS)
-MINISATP_DEB?=-std=c++11 -O0 -D DEBUG  -Wno-strict-aliasing -D CRYPTOMS   $(MAXPRE) $(BIGWEIGHTS)
-MINISATP_PRF?=-std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CRYPTOMS   $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_REL?=-std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CRYPTOMS $(USESCIP) $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_DEB?=-std=c++11 -O0 -D DEBUG  -Wno-strict-aliasing -D CRYPTOMS $(USESCIP) $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_PRF?=-std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CRYPTOMS $(USESCIP) $(MAXPRE) $(BIGWEIGHTS)
 MINISATP_FPIC?=-fpic
 MINISAT_INCLUDE?=-I/include -I/include/minisat -I../cominisatps -I../cryptominisat/build/include
 MINISAT_LIB?=-L/lib -L../cryptominisat/build/lib -lcryptominisat5 -L/usr/lib/x86_64-linux-gnu -lpthread -L../m4ri-20200125/myinstall/lib -lm4ri -L../breakid/build/lib -lbreakid
@@ -14,5 +15,9 @@ MCL_LIB?=-L../maxpre/src/lib -lmaxpre
 else
 MCL_INCLUDE?=
 MCL_LIB?=
+endif
+ifneq ($(USESCIP),)
+MCL_INCLUDE+=-I../scipoptsuite-7.0.3/scip/src -I../scipoptsuite-7.0.3/build/scip
+MCL_LIB+=-L../scipoptsuite-7.0.3/build/lib -lscip -lsoplex-pic
 endif
 prefix?=

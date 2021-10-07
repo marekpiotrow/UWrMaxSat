@@ -293,6 +293,12 @@ public:
         return (long int)mpz_get_si(*num.data);
     }
 
+    explicit operator double () {
+        if (this->small())
+            throw Exception_IntOverflow(xstrdup("double"));
+        return mpz_get_d(*this->data);
+    }
+
     uint hash() const {   // primitive hash function -- not good with bit-shifts
         mp_size_t size = mpz_size(*data);
         mp_limb_t val = 0;

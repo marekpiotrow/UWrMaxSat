@@ -51,7 +51,7 @@ void ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq)
   Map<unsigned, unsigned> unusedmap;
   unsigned cnt = 1, subseq_found = 0, fs_size = fs.size(), reused_size = 0;
 
-  sort(fs);
+  Sort::sort(fs);
   nfs.push(fs[0]);
   for (int i = 1; i < fs.size(); i++, cnt++)
       if (fs[i] != fs[i-1]) {
@@ -87,7 +87,7 @@ void ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq)
           if (cover[i] == 0) cover[cnt++]=i;
       cover.shrink(cover.size() - cnt);
       seqGT cmp {prev_seq_size};
-      if (cover.size() > 0) sort(cover, cmp);
+      if (cover.size() > 0) Sort::sort(cover, cmp);
 
       vec<int> rev_cover(prev_seq.size(), 0);
       for (int i = 0; i < cover.size(); i++) rev_cover[cover[i]] = i;
@@ -100,7 +100,7 @@ void ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq)
           updateCoverIndices(cover[seq], cover, rev_cover, usedtmp, unusedmap, true);
           for (int i = 0; i < usedtmp.size(); i++) usedfs.push(usedtmp[i]);
       }
-      sort(usedfs);
+      Sort::sort(usedfs);
       cnt = 0;
       for (int i = 1; i < usedfs.size(); i++)
           if (usedfs[i].fst == usedfs[i-1].fst) usedfs[cnt].snd += usedfs[i].snd;
@@ -164,7 +164,7 @@ void ReuseSorters::updateCoverIndices(unsigned nr, vec<int>& cover, vec<int>& re
           usedfs.push(Pair_new(prev_elem[i] & ~7, cnt));
       }
   if (root_level) {
-      sort(usedfs);
+      Sort::sort(usedfs);
       unsigned cnt = 0;
       for (int i = 1; i < usedfs.size(); i++)
           if (usedfs[i].fst == usedfs[i-1].fst) usedfs[cnt].snd += usedfs[i].snd;

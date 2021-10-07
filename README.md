@@ -2,6 +2,10 @@
 
 When citing, always reference my [ICTAI 2020](https://www.ictai2020.org/) conference paper, bibtex record is [here](https://www.computer.org/csdl/api/v1/citation/bibtex/proceedings/1pP3sSVh3BS/922800a132).
 
+Since the version 1.3 you can merge the power of this solver with the [SCIP solver](https:://scipopt.org), if you have a licence to use it (see: https://scipopt.org/index.php#license). The SCIP solver will be run in a separate thread, if a MaxSAT instance is not too big (less than 100000 variables and clauses). Using parameters, you can force the solver to ran in the same thread as UWrMaxSat for a given number of seconds and UWrMaxSat will be started afterwards.
+
+In this version you will get compiler errors if you use both SCIP and Cadical solvers due to some limitations in the Cadical interface.
+
 ================================================================================
 ### Quick Install
 
@@ -24,7 +28,7 @@ When citing, always reference my [ICTAI 2020](https://www.ictai2020.org/) confer
         cd ..  
         mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..
 
-3. build the MaxSat preprocessor:  
+3. build the MaxSat preprocessor (if you want to use it - see Comments below):  
     * 3.1 clone the MaxPre repository:  
         git clone https://github.com/Laakeri/maxpre  
     * 3.2 compile it as a static library:  
@@ -33,17 +37,31 @@ When citing, always reference my [ICTAI 2020](https://www.ictai2020.org/) confer
         make lib  
         cd ..
 
-4. build the UWrMaxSat solver (release version, statically linked):  
-    cd uwrmaxsat  
-    make config  
-    make r
+4. build the SCIP solver library (if you want to use it)
+    * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download
+    * 4.2 untar and build a static library it:
+        tax zxv scipoptsuite-7.0.3.tgz
+        cd scipoptsuite-7.0.3
+        sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt
+        mkdir build && cd build
+        cmake -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..
+        make libscip
+        cd ../..
+
+5. build the UWrMaxSat solver (release version, statically linked):  
+        cd uwrmaxsat  
+        make config  
+        make r
+    * 5.1 replace the last command with the following one if you do not want to use MAXPRE and SCIP libraries:
+        MAXPRE= USESCIP=  make r
+    * 5.2 or with the one below if you do not want to use the MAXPRE library only:
+        MAXPRE=  make r
+    * 5.3 or with the one below if you do not want to use the SCIP library only:
+        USESCIP=  make r
 
 ### Comments:
 
    - the executable file is: build/release/bin/uwrmaxsat
-
-   - if you do not want to use MaxPre, skip the steps 3.1 and 3.2 and replace the last command in 4. with:
-       MAXPRE=  make r
 
    - if you want to use unbounded weights in MaxSAT instances, remove # in config.mk in the first line 
      containing BIGWEIGHTS before running the last command

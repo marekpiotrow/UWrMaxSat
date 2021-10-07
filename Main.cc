@@ -4,7 +4,7 @@ Minisat+ -- Copyright (c) 2005-2010, Niklas Een, Niklas Sorensson
 
 KP-MiniSat+ based on MiniSat+ -- Copyright (c) 2018-2020 Michał Karpiński, Marek Piotrów
 
-UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2020 Marek Piotrów
+UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2021 Marek Piotrów
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -38,6 +38,11 @@ Read a DIMACS file and apply the SAT-solver to it.
 
 #ifdef MAXPRE
 #include "preprocessorinterface.hpp"
+#endif
+
+#ifdef USE_SCIP
+#include <mutex>
+std::mutex stdout_mtx;
 #endif
 
 //=================================================================================================
@@ -86,8 +91,15 @@ uint64_t opt_unsat_conflicts = 5000000;
 char     opt_maxpre_str[80]= "[bu]#[buvsrgc]";
 int      opt_maxpre_time   = 0;
 int      opt_maxpre_skip   = 0;
-
 maxPreprocessor::PreprocessorInterface *maxpre_ptr = NULL;
+#endif
+
+#ifdef USE_SCIP
+bool     opt_use_scip_slvr = true;
+double   opt_scip_cpu      = 0;
+double   opt_scip_cpu_default = 600;
+bool     opt_scip_parallel = true;
+time_t   wall_clock_time;
 #endif
 
 char*    opt_input  = NULL;
@@ -101,7 +113,7 @@ unsigned long long int srtOptEncodings = 0, addOptEncodings = 0, bddOptEncodings
 
 cchar* doc =
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
-    "UWrMaxSat 1.1 -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-2020)\n" 
+    "UWrMaxSat 1.3 -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-2021)\n" 
     "and PB solver by Marek Piotrów and Michał Karpiński (2018) -- an extension of\n"
     "MiniSat+ 1.1, based on MiniSat 2.2.0  -- (C) Niklas Een, Niklas Sorensson (2012)\n"
     "with COMiniSatPS by Chanseok Oh (2016) as the SAT solver\n"
@@ -163,6 +175,13 @@ cchar* doc =
     "  -maxpre-skip= MaxPre skip ineffective technique after given tries (between 10 and 1000).\n"
     "  -maxpre-time= MaxPre time limit in seconds for preprocessing (0 - no limit).\n"
 #endif
+#ifdef USE_SCIP
+    "\n"
+    "SCIP (a mixed integer programming solver, see https://www.scipopt.org) specific options:\n"
+    "  -no-scip      Do not use SCIP solver. (The default setting is to use it for small instances.)\n"
+    "  -scip-cpu=    Timeout in seconds for SCIP solver. Zero - no limit (default).\n"
+    "  -no-par       Do not run SCIP solver in a separate thread. Timeout is changed to %gs if not set by user. \n" 
+#endif
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
 ;
 
@@ -201,6 +220,9 @@ void parseOptions(int argc, char** argv)
                         opt_base_max, opt_unsat_cpu
 #ifdef MAXPRE
                         , opt_maxpre_str
+#endif
+#ifdef USE_SCIP
+                        , opt_scip_cpu_default
 #endif
                         ), exit(0);
 
@@ -253,6 +275,11 @@ void parseOptions(int argc, char** argv)
 #ifdef MAXPRE
             else if (oneof(arg, "maxpre" ))    opt_use_maxpre = true;
 #endif
+#ifdef USE_SCIP
+            else if (oneof(arg, "no-scip"   )) opt_use_scip_slvr = false;
+            else if (strncmp(arg, "-scip-cpu=",  10) == 0) opt_scip_cpu  = atoi(arg+10);
+            else if (oneof(arg, "no-par"    )) opt_scip_parallel = false, opt_scip_cpu = (opt_scip_cpu == 0 ? opt_scip_cpu_default : opt_scip_cpu);
+#endif
             else if (oneof(arg, "s,satlive" )) opt_satlive = false;
             else if (oneof(arg, "a,ansi"    )) opt_ansi    = false;
             else if (oneof(arg, "try"       )) opt_try     = true;
@@ -293,6 +320,9 @@ void parseOptions(int argc, char** argv)
                         , opt_maxpre_str
 #endif
                         ), exit(0);
+#ifdef USE_SCIP
+    if (opt_command != cmd_Minimize || opt_output_top > 0) opt_use_scip_slvr = false;
+#endif
     if (args.size() >= 1)
         opt_input = args[0];
     if (args.size() == 2)
@@ -308,6 +338,9 @@ void parseOptions(int argc, char** argv)
 
 void reportf(const char* format, ...)
 {
+#ifdef USE_SCIP
+    std::lock_guard<std::mutex> lck(stdout_mtx);
+#endif
     static bool col0 = true;
     static bool bold = false;
     va_list args;
@@ -343,6 +376,9 @@ static bool resultsPrinted = false;
 
 void outputResult(const PbSolver& S, bool optimum)
 {
+#ifdef USE_SCIP
+    std::lock_guard<std::mutex> lck(stdout_mtx);
+#endif
     if (!opt_satlive || resultsPrinted) return;
 
     if (opt_model_out && S.best_goalvalue != Int_MAX){
@@ -572,6 +608,9 @@ PbSolver::solve_Command convert(Command cmd) {
 
 int main(int argc, char** argv)
 {
+#ifdef USE_SCIP
+    time(&wall_clock_time);
+#endif
   try {
     parseOptions(argc, argv);
     pb_solver = new MsSolver(opt_preprocess);

@@ -173,7 +173,7 @@ bool PbSolver::normalizePb(vec<Lit>& ps, vec<Int>& Cs, Int& C, Lit& lit)
 
     // Sort literals on growing constant values:
     //
-    sort(Csps);     // (use lexicographical order of 'Pair's here)
+    Sort::sort(Csps);     // (use lexicographical order of 'Pair's here)
     Int     sum = 0;
     for (int i = 0; i < Csps.size(); i++){
         Cs[i] = Csps[i].fst, ps[i] = Csps[i].snd, sum += Cs[i];
@@ -740,6 +740,9 @@ void PbSolver::solve(solve_Command cmd)
 
 void PbSolver::printStats()
 {
+#ifdef USE_SCIP
+    std::lock_guard<std::mutex> lck(stdout_mtx);
+#endif
     static bool statsPrinted = false;
     if (!statsPrinted) {
         double cpu_time = cpuTime();
@@ -756,6 +759,12 @@ void PbSolver::printStats()
         printf("c =======================[ UWrMaxSat resources usage ]===========================\n");
         if (mem_used != 0) printf("c Memory used            : %.2f MB\n", mem_used);
         printf("c CPU time               : %g s\n", cpu_time);
+#ifdef USE_SCIP
+        extern bool opt_scip_parallel;
+        extern time_t wall_clock_time;
+        if (opt_scip_parallel)
+            printf("c Wall clock time        : %g s\n", difftime(time(NULL), wall_clock_time));
+#endif
         if (srtEncodings != 0 || bddEncodings != 0 || addEncodings != 0)
             printf("c Constr Enc: Srt/BDD/Add: %llu %llu %llu\n", srtEncodings, bddEncodings, addEncodings);
         if (srtOptEncodings != 0 || bddOptEncodings != 0 || addOptEncodings != 0)

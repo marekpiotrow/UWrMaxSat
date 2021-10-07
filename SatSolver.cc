@@ -32,6 +32,15 @@ static Var mapVar(Var x, Minisat::vec<Var>& map, Var& max)
 }
 #endif
 
+#if !defined(CADICAL) && !defined(CRYPTOMS)
+const Minisat::Clause& ExtSimpSolver::getClause  (int i, bool &is_satisfied) const
+{
+    const Minisat::Clause& ps = ca[clauses[i]];
+    is_satisfied = satisfied(ps);
+    return ps;
+}
+#endif
+
 void ExtSimpSolver::printVarsCls(bool encoding, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls, int soft_cnt)
 {
     Minisat::vec<Var> map; Var max=0;

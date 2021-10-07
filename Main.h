@@ -27,6 +27,11 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "Int.h"
 #include "PbSolver.h"
 
+#ifdef USE_SCIP
+#include <mutex>
+extern std::mutex stdout_mtx;
+#endif
+
 //=================================================================================================
 
 

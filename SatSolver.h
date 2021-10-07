@@ -72,9 +72,14 @@ using weight_t = int64_t;
 
 class ExtSimpSolver: public SimpSolver {
 public:
-#ifdef MERGESAT
+#if defined(MERGESAT)
     ExtSimpSolver() { use_ccnr = false; allow_rephasing = false; 
         printf("c Using MergeSat SAT solver by Norbert Manthey (2021)\n"); }
+#elif defined(GLUCOSE4)
+    ExtSimpSolver() { printf("c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"); }
+#endif
+#if !defined(CADICAL) && !defined(CRYPTOMS)
+    const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;
 #endif
     void printVarsCls(bool encoding = true, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls = NULL, int soft_cls_sz = 0);
     bool prop_check   (Lit assump, Minisat::vec<Lit>& prop, int psaving = 2); // compute a list of propagated literals given a set of assumptions

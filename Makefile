@@ -49,14 +49,15 @@ MCL_LIB        ?=-L../maxpre/src/lib -lmaxpre
 config:
 	@( echo 'BUILD_DIR?=$(BUILD_DIR)'             ; \
            echo 'MAXPRE?=-D MAXPRE'                   ; \
+           echo 'USESCIP?=-D USE_SCIP -pthread'       ; \
            echo 'BIGWEIGHTS?=#-D BIG_WEIGHTS'         ; \
 	   echo 'MINISATP_RELSYM?=$(MINISATP_RELSYM)'           ; \
-	   echo 'MINISATP_REL?=$(MINISATP_REL) $$(MAXPRE) $$(BIGWEIGHTS)' ; \
-	   echo 'MINISATP_DEB?=$(MINISATP_DEB) $$(MAXPRE) $$(BIGWEIGHTS)' ; \
-	   echo 'MINISATP_PRF?=$(MINISATP_PRF) $$(MAXPRE) $$(BIGWEIGHTS)' ; \
+	   echo 'MINISATP_REL?=$(MINISATP_REL) $$(MAXPRE) $$(USESCIP) $$(BIGWEIGHTS)' ; \
+	   echo 'MINISATP_DEB?=$(MINISATP_DEB) $$(MAXPRE) $$(USESCIP) $$(BIGWEIGHTS)' ; \
+	   echo 'MINISATP_PRF?=$(MINISATP_PRF) $$(MAXPRE) $$(USESCIP) $$(BIGWEIGHTS)' ; \
 	   echo 'MINISATP_FPIC?=$(MINISATP_FPIC)'               ; \
 	   echo 'MINISAT_INCLUDE?=$(MINISAT_INCLUDE)' ; \
-	   echo 'MINISAT_LIB?=$(MINISAT_LIB)'         ; \
+	   echo 'MINISAT_LIB?=$(MINISAT_LIB) $$(USESCIP)'         ; \
            echo 'ifneq ($$(MAXPRE),)'                  ; \
 	   echo 'MCL_INCLUDE?=$(MCL_INCLUDE)'         ; \
 	   echo 'MCL_LIB?=$(MCL_LIB)'                 ; \
@@ -64,6 +65,10 @@ config:
            echo 'MCL_INCLUDE?='                       ; \
            echo 'MCL_LIB?='                           ; \
            echo 'endif'                               ; \
+           echo 'ifneq ($$(USESCIP),)'                  ; \
+	   echo 'MCL_INCLUDE+=-I../scipoptsuite-7.0.3/scip/src -I../scipoptsuite-7.0.3/build/scip' ; \
+	   echo 'MCL_LIB+=-L../scipoptsuite-7.0.3/build/lib -lscip -lsoplex-pic'                 ; \
+           echo 'endif'                                ; \
 	   echo 'prefix?=$(prefix)'                   ) > config.mk
 
 ## Configurable options end #######################################################################
@@ -80,7 +85,7 @@ SOMAJOR=1
 SOMINOR=0
 SORELEASE?=.0#   Declare empty to leave out from library file name.
 
-MINISATP_CXXFLAGS = -IADTs -include Global.h -include Main.h -D_FILE_OFFSET_BITS=64 -D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -Wall -Wno-parentheses -Wextra  $(MCL_INCLUDE) $(MINISAT_INCLUDE)
+MINISATP_CXXFLAGS = -IADTs -include Global.h -include Main.h -D_FILE_OFFSET_BITS=64 -D __STDC_LIMIT_MACROS -Wall -Wno-parentheses -Wextra  $(MCL_INCLUDE) $(MINISAT_INCLUDE)
 MINISATP_LDFLAGS  = -Wall  $(MCL_LIB) $(MINISAT_LIB) -lz -lgmp
 
 ifeq ($(VERB),)
