@@ -101,8 +101,8 @@ and Laurent Simon or (C) mergesat by Norbert Manthey - see steps 5(A) or 5(B) or
 
 * **5(C)** clone mergesat and build UWrMaxSat with this SAT solver:  
     cd ..  
-    git clone https://github.com/conp-solutions/mergesat
-    cd mergesat
+    git clone https://github.com/conp-solutions/mergesat  
+    cd mergesat  
     make lr  
     cd ../uwrmaxsat  
     cp config.mergesat config.mk  
