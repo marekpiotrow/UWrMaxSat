@@ -37,16 +37,16 @@ In this version you will get compiler errors if you use both SCIP and Cadical so
         make lib  
         cd ..
 
-4. build the SCIP solver library (if you want to use it)
-    * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download
-    * 4.2 untar and build a static library it:
-        tax zxv scipoptsuite-7.0.3.tgz
-        cd scipoptsuite-7.0.3
-        sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt
-        mkdir build && cd build
-        cmake -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..
-        make libscip
-        cd ../..
+4. build the SCIP solver library (if you want to use it) 
+    * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download 
+    * 4.2 untar and build a static library it: 
+        tax zxv scipoptsuite-7.0.3.tgz 
+        cd scipoptsuite-7.0.3 
+        sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt 
+        mkdir build && cd build 
+        cmake -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny .. 
+        make libscip 
+        cd ../.. 
 
 5. build the UWrMaxSat solver (release version, statically linked):  
         cd uwrmaxsat  
