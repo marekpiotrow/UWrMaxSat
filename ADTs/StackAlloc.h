@@ -35,7 +35,7 @@ struct Allocator {
 // than this -- unless enough space left on the current stack).
 //
 template<class T, int cap=10000, int lim=cap/10>
-class StackAlloc : public Allocator<T> {
+class StackAlloc final : public Allocator<T> {
     T*          data;
     StackAlloc* prev;
     int         index;

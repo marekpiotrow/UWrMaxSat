@@ -909,9 +909,10 @@ SwitchSearchMethod:
                     goal_ps.push(~am1_rels[i].fst), goal_Cs.push(am1_rels[i].snd), sumCs += goal_Cs.last();
                 {   Int lower_bound = LB_goalvalue-fixed_goalval-harden_goalval; int j = 0;
                     for (int i = 0; i < goal_Cs.size(); i++)
-                        if (sumCs - goal_Cs[i] < lower_bound) 
+                        if (sumCs - goal_Cs[i] < lower_bound) {
+                            if (!harden_lits.has(goal_ps[i])) top_for_hard--;
                             addUnit(goal_ps[i]), fixed_goalval += goal_Cs[i];
-                        else { if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i]; j++; }
+                        } else { if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i]; j++; }
                     if (j < goal_ps.size()) goal_ps.shrink(goal_ps.size() - j), goal_Cs.shrink(goal_Cs.size() - j);
                 }
                 top_for_strat = 0; sorted_assump_Cs.clear(); am1_rels.clear(); harden_lits.clear();
@@ -1095,7 +1096,7 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
                     ind.push(l);
                     if (assump_Cs[l] < min_Cs) min_Cs = assump_Cs[l];
                 }
-                else reportf("am1: %d %d %d %s\n", i, am1.size(), toInt(am1[0]), toInt(am1[i]), (l>=0 && l <assump_Cs.size()?toString(assump_Cs[l]):"???"));
+                else reportf("am1: %d %d %d %d %s\n", i, am1.size(), toInt(am1[0]), toInt(am1[i]), (l>=0 && l <assump_Cs.size()?toString(assump_Cs[l]):"???"));
             if (ind.size() < 2) continue;
             for (int i = 0; i < ind.size(); i++) {
                 if (assump_Cs[ind[i]] == min_Cs) cls.push(assump_ps[ind[i]]), assump_Cs[ind[i]] = -assump_Cs[ind[i]];
