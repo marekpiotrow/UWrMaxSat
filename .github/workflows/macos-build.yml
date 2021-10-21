@@ -18,10 +18,10 @@ jobs:
     - name: unzip and move
       run: unzip COMiniSatPSChandrasekharDRUP.zip ; mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
     - name: apply patch
-      run: cd cominisatps ; patch -p1 <../uwrmaxsat/cominisatps.patch
+      run: cd cominisatps ; patch -p1 <../UWrMaxSat/cominisatps.patch
     - name: make SAT solver library
       run: cd simp ; MROOT=.. make libr ; cd ..
     - name: create links
       run: mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..
     - name: build UWrMaxSat
-      run: cd uwrmaxsat ; make config ; MAXPRE= USESCIP= make r
+      run: cd UWrMaxSat ; make config ; MAXPRE= USESCIP= make r
