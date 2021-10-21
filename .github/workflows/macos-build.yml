@@ -15,33 +15,23 @@ jobs:
     - uses: actions/checkout@v2
     - name: build COMiniSatPS
       run: |
-        pwd
         cd ..
-        pwd
-        wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
-    - name: unzip and move
-      run: | 
+        wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.z
         unzip COMiniSatPSChandrasekharDRUP.zip
         mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
-    - name: apply patch
-      run: |
         cd cominisatps
         patch -p1 <../UWrMaxSat/cominisatps.patch
     - name: make SAT solver library
       run: |
-        cd simp
+        cd ../cominisatps/simp
         MROOT=.. make libr
-        cd ..
-    - name: create links
+    - name: create SAT solver links
       run: |
+        cd ../cominisatps
         mkdir minisat
         cd minisat
         ln -s ../core ../simp ../mtl ../utils .
-        cd ../..
     - name: build UWrMaxSat
       run: |
-        pwd
-        ls
-        cd UWrMaxSat
         make config
         MAXPRE= USESCIP= make r
