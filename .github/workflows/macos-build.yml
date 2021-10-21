@@ -13,6 +13,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: list
       run: |
         ls ${{ github.workspace }}
         pwd
@@ -25,9 +26,6 @@ jobs:
       run: | 
         unzip COMiniSatPSChandrasekharDRUP.zip
         mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
-    - name: List
-        run: |
-          ls ${{ github.workspace }}
     - name: apply patch
       run: |
         cd cominisatps
