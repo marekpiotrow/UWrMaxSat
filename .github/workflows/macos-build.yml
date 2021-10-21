@@ -9,19 +9,36 @@ on:
 jobs:
   MacOS:
 
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
+      run: cd ..
     - name: build COMiniSatPS
-      run:  wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
+      run: |
+        cd ..
+        wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
     - name: unzip and move
-      run: unzip COMiniSatPSChandrasekharDRUP.zip ; mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
+      run:  | 
+        unzip COMiniSatPSChandrasekharDRUP.zip
+        mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
     - name: apply patch
-      run: cd cominisatps ; patch -p1 <../UWrMaxSat/cominisatps.patch
+      run: |
+        cd cominisatps
+        patch -p1 <../UWrMaxSat/cominisatps.patch
     - name: make SAT solver library
-      run: cd simp ; MROOT=.. make libr ; cd ..
+      run: |
+        cd simp
+        MROOT=.. make libr
+        cd ..
     - name: create links
-      run: mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..
+      run: |
+        mkdir minisat
+        cd minisat
+        ln -s ../core ../simp ../mtl ../utils .
+        cd ../..
     - name: build UWrMaxSat
-      run: cd UWrMaxSat ; make config ; MAXPRE= USESCIP= make r
+      run: |
+        cd UWrMaxSat
+        make config
+        MAXPRE= USESCIP= make r
