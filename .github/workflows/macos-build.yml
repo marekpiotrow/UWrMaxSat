@@ -1,0 +1,27 @@
+name: Build on Mac OS
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  MacOS:
+
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: build COMiniSatPS
+      run:  wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
+    - name: unzip and move
+      run: unzip COMiniSatPSChandrasekharDRUP.zip ; mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
+    - name: apply patch
+      run: cd cominisatps ; patch -p1 <../uwrmaxsat/cominisatps.patch
+    - name: make SAT solver library
+      run: cd simp ; MROOT=.. make libr ; cd ..
+    - name: create links
+      run: mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..
+    - name: build UWrMaxSat
+      run: cd uwrmaxsat ; make config ; MAXPRE= USESCIP= make r
