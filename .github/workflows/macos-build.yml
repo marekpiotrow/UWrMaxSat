@@ -13,15 +13,21 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-      run: cd ..
+      run: |
+        ls ${{ github.workspace }}
+        pwd
+        cd ..
     - name: build COMiniSatPS
       run: |
         cd ..
         wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
     - name: unzip and move
-      run:  | 
+      run: | 
         unzip COMiniSatPSChandrasekharDRUP.zip
         mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
+    - name: List
+        run: |
+          ls ${{ github.workspace }}
     - name: apply patch
       run: |
         cd cominisatps
