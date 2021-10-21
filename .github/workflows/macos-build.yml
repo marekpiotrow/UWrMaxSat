@@ -12,15 +12,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: list
-      run: |
-        ls ${{ github.workspace }}
-        pwd
-        cd ..
+    - uses: actions/checkout@v
     - name: build COMiniSatPS
       run: |
+        pwd
         cd ..
+        pwd
         wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
     - name: unzip and move
       run: | 
@@ -43,6 +40,8 @@ jobs:
         cd ../..
     - name: build UWrMaxSat
       run: |
+        pwd
+        ls
         cd UWrMaxSat
         make config
         MAXPRE= USESCIP= make r
