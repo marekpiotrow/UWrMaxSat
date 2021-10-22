@@ -9,7 +9,7 @@ on:
 jobs:
   MacOS:
 
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -35,3 +35,7 @@ jobs:
       run: |
         make config
         MAXPRE= USESCIP= make r
+    - name: test executable
+      run: |
+        build/release/bin/uwrmaxsat -of Examples/unsat.opb
+        build/release/bin/uwrmaxsat -of Examples/garden9x9.opb
