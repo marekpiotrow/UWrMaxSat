@@ -92,7 +92,7 @@ bool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, MsSolver *solver
             reportf("_______________________________________________________________________________\n");
         }
         outputResult(*solver, true);
-        quick_exit(0);
+        std::_Exit(0);
     }
     return found_opt;
 }

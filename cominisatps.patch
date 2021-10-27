@@ -187,7 +187,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
  #endif
 diff -urB cominisatps-SAT2016/core/Solver.h cominisatps/core/Solver.h
 --- cominisatps-SAT2016/core/Solver.h	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/core/Solver.h	2020-07-17 09:34:07.994400936 +0200
++++ cominisatps/core/Solver.h	2021-10-14 14:10:35.938471285 +0200
 @@ -23,7 +23,7 @@
  #ifndef Minisat_Solver_h
  #define Minisat_Solver_h
@@ -235,6 +235,20 @@ diff -urB cominisatps-SAT2016/core/SolverTypes.h cominisatps/core/SolverTypes.h
  inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
  inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }
  inline  bool sign      (Lit p)              { return p.x & 1; }
+diff -urB cominisatps-SAT2016/mtl/Map.h cominisatps/mtl/Map.h
+--- cominisatps-SAT2016/mtl/Map.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/Map.h	2021-10-27 11:36:49.079164839 +0200
+@@ -66,8 +66,8 @@
+     int        size;
+ 
+     // Don't allow copying (error prone):
+-    Map<K,D,H,E>&  operator = (Map<K,D,H,E>& other) { assert(0); }
+-                   Map        (Map<K,D,H,E>& other) { assert(0); }
++    Map<K,D,H,E>&  operator = (Map<K,D,H,E>& ) { assert(0); }
++                   Map        (Map<K,D,H,E>& ) { assert(0); }
+ 
+     bool    checkCap(int new_size) const { return new_size > cap; }
+ 
 diff -urB cominisatps-SAT2016/mtl/template.mk cominisatps/mtl/template.mk
 --- cominisatps-SAT2016/mtl/template.mk	2016-05-02 03:22:00.000000000 +0200
 +++ cominisatps/mtl/template.mk	2020-07-17 11:36:18.589345683 +0200
@@ -256,6 +270,20 @@ diff -urB cominisatps-SAT2016/mtl/template.mk cominisatps/mtl/template.mk
  	@for dir in $(DEPDIR); do \
  	      if [ -r $(MROOT)/$${dir}/depend.mk ]; then \
  		  echo Depends on: $${dir}; \
+diff -urB cominisatps-SAT2016/mtl/Vec.h cominisatps/mtl/Vec.h
+--- cominisatps-SAT2016/mtl/Vec.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/Vec.h	2021-10-27 11:36:29.850452660 +0200
+@@ -41,8 +41,8 @@
+     int cap;
+ 
+     // Don't allow copying (error prone):
+-    vec<T>&  operator = (vec<T>& other) { assert(0); return *this; }
+-             vec        (vec<T>& other) { assert(0); }
++    vec<T>&  operator = (vec<T>& ) { assert(0); return *this; }
++             vec        (vec<T>& ) { assert(0); }
+              
+     // Helpers for calculating next capacity:
+     static inline int  imax   (int x, int y) { int mask = (y-x) >> (sizeof(int)*8-1); return (x&mask) + (y&(~mask)); }
 diff -urB cominisatps-SAT2016/simp/Main.cc cominisatps/simp/Main.cc
 --- cominisatps-SAT2016/simp/Main.cc	2016-05-02 03:22:00.000000000 +0200
 +++ cominisatps/simp/Main.cc	2020-07-17 09:34:07.994400936 +0200
@@ -395,7 +423,7 @@ diff -urB cominisatps-SAT2016/utils/Options.h cominisatps/utils/Options.h
              fprintf(stderr, "\n");
 diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 --- cominisatps-SAT2016/utils/System.cc	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/utils/System.cc	2020-10-21 11:29:27.654831916 +0200
++++ cominisatps/utils/System.cc	2021-10-27 11:53:01.555588600 +0200
 @@ -18,11 +18,13 @@
  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  **************************************************************************************************/
@@ -411,6 +439,15 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
  #include <stdlib.h>
  
  using namespace Minisat;
+@@ -78,7 +80,7 @@
+     struct rusage ru;
+     getrusage(RUSAGE_SELF, &ru);
+     return (double)ru.ru_maxrss / 1024; }
+-double MiniSat::memUsedPeak(void) { return memUsed(); }
++double Minisat::memUsedPeak(void) { return memUsed(); }
+ 
+ 
+ #elif defined(__APPLE__)
 @@ -88,8 +90,73 @@
      malloc_statistics_t t;
      malloc_zone_statistics(NULL, &t);
@@ -430,7 +467,7 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 +// FIXME: OpenBSD does not support RLIMIT_AS. Not sure how well RLIMIT_DATA works instead.
 +#if defined(__OpenBSD__)
 +#define RLIMIT_AS RLIMIT_DATA
-+#endif
+ #endif
 +
 +    // Set limit on virtual memory:
 +    if (max_mem_mb != 0){
@@ -453,7 +490,7 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 +{
 +    printf("WARNING! Memory limit not supported on this architecture.\n");
 +}
- #endif
++#endif
 +
 +
 +#if !defined(_MSC_VER) && !defined(__MINGW32__)
