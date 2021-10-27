@@ -553,7 +553,7 @@ static void SIGINT_handler(int /*signum*/) {
     reportf("*** INTERRUPTED ***\n");
     //SatELite::deleteTmpFiles();
     fflush(stdout);
-    quick_exit(0); }
+    std::_Exit(0); }
 
 
 static void SIGTERM_handler(int signum) {
@@ -567,7 +567,7 @@ static void SIGTERM_handler(int signum) {
     handlerOutputResult(*pb_solver, false);
     //SatELite::deleteTmpFiles();
     //fflush(stdout);
-    quick_exit(0);
+    std::_Exit(0);
 }
 
 static void increase_stack_size(int new_size) // M. Piotrow 16.10.2017
@@ -709,7 +709,7 @@ int main(int argc, char** argv)
     else if (opt_command == cmd_FirstSolution)
         outputResult(*pb_solver, false);
 
-    quick_exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
+    std::_Exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
     
   } catch (Minisat::OutOfMemoryException&){
         if (opt_verbosity >= 1) {
