@@ -28,7 +28,7 @@ In this version you will get compiler errors if you use both SCIP and Cadical so
         cd ..  
         mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..
 
-3. build the MaxSat preprocessor (if you want to use it - see Comments below):  
+3. build the MaxPre preprocessor (if you want to use it - see Comments below):  
     * 3.1 clone the MaxPre repository:  
         git clone https://github.com/Laakeri/maxpre  
     * 3.2 compile it as a static library:  
