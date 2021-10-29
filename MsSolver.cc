@@ -523,7 +523,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     lbool status;
     while (1) {
       if (use_base_assump) for (int i = 0; i < base_assump.size(); i++) assump_ps.push(base_assump[i]);
-      if (opt_minimization == 1 && opt_to_bin_search && sat_solver.conflicts < opt_unsat_conflicts - 500)
+      if (opt_minimization == 1 && opt_to_bin_search && opt_unsat_conflicts >= 100000 &&
+                                 sat_solver.conflicts < opt_unsat_conflicts - 500)
           sat_solver.setConfBudget(opt_unsat_conflicts - sat_solver.conflicts);
       else sat_solver.budgetOff();
       status = 
@@ -900,7 +901,7 @@ SwitchSearchMethod:
                         }
                         j++;
                     }
-                }      
+                }
                 if (k < assump_ps.size()) assump_ps.shrink(assump_ps.size() - k), assump_Cs.shrink(assump_Cs.size() - k);
                 for (int i = 0; i < top_for_strat; i++) { 
                     if (soft_cls[i].snd->size() > 1) sat_solver.addClause(*soft_cls[i].snd);
@@ -911,7 +912,7 @@ SwitchSearchMethod:
                     for (int i = 0; i < goal_Cs.size(); i++)
                         if (sumCs - goal_Cs[i] < lower_bound) {
                             if (!harden_lits.has(goal_ps[i])) top_for_hard--;
-                            addUnit(goal_ps[i]), fixed_goalval += goal_Cs[i];
+                            addUnit(goal_ps[i]), harden_goalval += goal_Cs[i];
                         } else { if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i]; j++; }
                     if (j < goal_ps.size()) goal_ps.shrink(goal_ps.size() - j), goal_Cs.shrink(goal_Cs.size() - j);
                 }
