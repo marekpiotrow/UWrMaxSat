@@ -31,7 +31,7 @@ jobs:
         mkdir minisat
         cd minisat
         ln -s ../core ../simp ../mtl ../utils .
-    - name: build the MaxSat preprocessor
+    - name: build the MaxPre preprocessor
       run: |
         cd ..
         git clone https://github.com/Laakeri/maxpre
@@ -41,7 +41,7 @@ jobs:
     - name: build UWrMaxSat
       run: |
         make config
-        MAXPRE= USESCIP= make r
+        USESCIP= make r
     - name: test executable
       run: |
         build/release/bin/uwrmaxsat -of Examples/unsat.opb
