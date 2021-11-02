@@ -146,7 +146,7 @@ public:
         mpz_init_set_si(*data, x);
     }
 
-    Int(long x) {
+    explicit Int(int64_t x) {
         data = xmalloc<mpz_t>(1); assert(((intp)data & 1) == 0);
         mpz_init_set_si(*data, x);
     }

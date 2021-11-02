@@ -89,12 +89,12 @@ void separationIndex(const vec<weight_t>& cs, vec<int>& separation_points) {
   lw.push(cs[0]);
   for(int i=1; i<cs.size(); i++) { lw.push(cs[i] + lw[i-1]); }
 
-  weight_t rdiff = LONG_MAX, rgcd = cs[cs.size()-1];
+  weight_t rdiff = WEIGHT_MAX, rgcd = cs[cs.size()-1];
 
   // search for separation points (generalized Boolean multilevel optimization points)
   for (int i = cs.size() - 2; i > 1; i--) {
       rgcd = gcd(cs[i], rgcd);
-      rdiff = min(rdiff, cs[i] == cs[i+1] ? LONG_MAX : cs[i+1] - cs[i]);
+      rdiff = min(rdiff, cs[i] == cs[i+1] ? WEIGHT_MAX : cs[i+1] - cs[i]);
       bool final_split = lw[i-1] <= rgcd;
       bool potential_split = lw[i-1] <= cs[i] && lw[i-1] <= rdiff;
       char res = 'N';

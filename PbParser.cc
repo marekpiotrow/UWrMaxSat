@@ -515,7 +515,7 @@ void parse_PB_file(cchar* filename, PbSolver& solver, bool old_format, bool abor
 template<class B, class S>
 static bool parse_WCNF(B& in, S& solver, bool abort_on_error)
 {
-    Int hard_bound = WEIGHT_MAX;
+    Int hard_bound = Int(WEIGHT_MAX);
     bool wcnf_format = true;
 
     try{
