@@ -247,7 +247,7 @@ void parseOptions(int argc, char** argv)
             else if (strncmp(arg, "-bdd-thres=" , 11) == 0) opt_bdd_thres  = atof(arg+11);
             else if (strncmp(arg, "-sort-thres=", 12) == 0) opt_sort_thres = atof(arg+12);
             else if (strncmp(arg, "-goal-bias=",  11) == 0) opt_goal_bias  = atof(arg+11);
-            else if (strncmp(arg, "-goal="     ,   6) == 0) opt_goal       = Int(atol(arg+ 6));  // <<== real bignum parsing here
+            else if (strncmp(arg, "-goal="     ,   6) == 0) opt_goal       = Int((int64_t)atol(arg+ 6));  // <<== real bignum parsing here
             else if (strncmp(arg, "-cnf="      ,   5) == 0) opt_cnf        = arg + 5;
             else if (strncmp(arg, "-base-max=",   10) == 0) opt_base_max   = atoi(arg+10); 
             else if (strncmp(arg, "-bin-split=",  11) == 0) opt_bin_percent= atoi(arg+11); 
