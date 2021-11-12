@@ -74,7 +74,7 @@ bool PbSolver::convertPbs(bool first_call)
                 if (result == _undef_) linearAddition(c, converted_constrs), first_call ? ++addEncodings : ++addOptEncodings;
                 else converted_constrs.push(result);
             } else assert(false);
-            if (!opt_maxsat_msu || !opt_shared_fmls || opt_minimization != 1)
+            if (first_call || !(opt_maxsat_msu && opt_shared_fmls && opt_minimization == 1))
                 constrs[i]->~Linear(), constrs[i] = NULL;
             if (!opt_shared_fmls && FEnv::nodes.size() >= 100000) { 
                 clausify(sat_solver, converted_constrs); converted_constrs.clear();
@@ -93,7 +93,7 @@ bool PbSolver::convertPbs(bool first_call)
     }
 
     try {
-        if (!opt_maxsat_msu || !opt_shared_fmls || opt_minimization != 1) {
+        if (first_call || !(opt_maxsat_msu && opt_shared_fmls && opt_minimization == 1)) {
             constrs.clear(), mem.clear();
             clausify(sat_solver, converted_constrs);
         } else {

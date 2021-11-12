@@ -134,19 +134,19 @@ class Int {
 public:
     // Constructors/Destructor (+assignment operator)
     //
-    Int(mpz_t* d) : data(d) {}      // Low-level constructor -- don't use!
+    explicit Int(mpz_t* d) : data(d) {}      // Low-level constructor -- don't use!
 
     Int() {
         data = xmalloc<mpz_t>(1); assert(((intp)data & 1) == 0);
         mpz_init(*data);
     }
 
-    Int(int x) {
+    explicit Int(int x) {
         data = xmalloc<mpz_t>(1); assert(((intp)data & 1) == 0);
         mpz_init_set_si(*data, x);
     }
 
-    explicit Int(int64_t x) {
+    Int(int64_t x) {
         data = xmalloc<mpz_t>(1); assert(((intp)data & 1) == 0);
         mpz_init_set_si(*data, x);
     }

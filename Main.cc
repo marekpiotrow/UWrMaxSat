@@ -163,7 +163,7 @@ cchar* doc =
     "\n"
     "MaxSAT specific options:\n"
     "  -no-msu       Use PB specific search algoritms for MaxSAT (see -alt, -bin, -seq).\n"
-    "  -unsat-cpu=   Time to switch UNSAT search strategy to SAT/UNSAT. [def: %g s]\n"
+    "  -unsat-cpu=   Time to switch UNSAT search strategy to SAT/UNSAT. [def: %g conflicts]\n"
     "  -lex-opt      Do Boolean lexicographic optimizations on soft clauses.\n"
     "  -no-bin       Do not switch from UNSAT to SAT/UNSAT search strategy.\n"
     "  -no-ms-pre    Do not preprocess soft clauses (detect unit/am1 cores).\n"
@@ -217,7 +217,7 @@ void parseOptions(int argc, char** argv)
         if (arg[0] == '-'){
             if (oneof(arg,"h,help")) 
                 fprintf(stderr, doc, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
-                        opt_base_max, opt_unsat_cpu
+                        opt_base_max, opt_unsat_conflicts
 #ifdef MAXPRE
                         , opt_maxpre_str
 #endif
@@ -247,7 +247,7 @@ void parseOptions(int argc, char** argv)
             else if (strncmp(arg, "-bdd-thres=" , 11) == 0) opt_bdd_thres  = atof(arg+11);
             else if (strncmp(arg, "-sort-thres=", 12) == 0) opt_sort_thres = atof(arg+12);
             else if (strncmp(arg, "-goal-bias=",  11) == 0) opt_goal_bias  = atof(arg+11);
-            else if (strncmp(arg, "-goal="     ,   6) == 0) opt_goal       = atoi(arg+ 6);  // <<== real bignum parsing here
+            else if (strncmp(arg, "-goal="     ,   6) == 0) opt_goal       = Int(atol(arg+ 6));  // <<== real bignum parsing here
             else if (strncmp(arg, "-cnf="      ,   5) == 0) opt_cnf        = arg + 5;
             else if (strncmp(arg, "-base-max=",   10) == 0) opt_base_max   = atoi(arg+10); 
             else if (strncmp(arg, "-bin-split=",  11) == 0) opt_bin_percent= atoi(arg+11); 
@@ -270,7 +270,7 @@ void parseOptions(int argc, char** argv)
             else if (oneof(arg, "of,old-fmt" )) opt_old_format = true;
             else if (oneof(arg, "m,maxsat"  )) opt_maxsat  = true;
             else if (oneof(arg, "lex-opt"   )) opt_lexicographic = true;
-            else if (oneof(arg, "no-bin"    )) opt_to_bin_search = opt_reuse_sorters = false;
+            else if (oneof(arg, "no-bin"    )) opt_to_bin_search = false;
             else if (oneof(arg, "no-ms-pre" )) opt_maxsat_prepr = false;
 #ifdef MAXPRE
             else if (oneof(arg, "maxpre" ))    opt_use_maxpre = true;
