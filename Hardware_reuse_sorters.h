@@ -37,13 +37,21 @@ class ReuseSorters {
              prev_seq_size;  // contains lengthes of input sequences stored in prev_seq and prev_elem;
     Map<Pair<unsigned, unsigned>, vec<int>* > fnmap; // (input, count) -> { indices in prev_seq, where the pair appered } 
     Map<unsigned, vec<int>* > fnnmap[maxCount]; // as above, but for count c in {1, 2, ..., maxCount} and in fnnmap[c-1]
+    vec<Formula> out_fmls;   // if opt_shared_fmls is false, out_fmls contains elements of outputs of previous sorters;
+    vec<unsigned> out_seq;   // if opt_shared_fmls is false, out_seq contains indices of the next-to-last elements of out_fmls;
+
+    int tmp_seq_cnt;         // The number of last sequences that can be kept or removed. 
+                             // They are removed if the corresponding encoding is replaced by a smaller BDD/Adder one. 
 
     void updateCoverIndices(unsigned nr, vec<int>& cover, vec<int>& rev_cover, vec<Pair<unsigned,unsigned> >& usedfs, 
                                                           Map<unsigned, unsigned>& unusedmap, bool root_level);
     void encodeWithReuse(vec<unsigned>&outfs, int from, int to, vec<Formula>& outvars, int k, int ineq);
+    void insertSeqElemsIntoMaps(unsigned nr, vec<Pair<unsigned,unsigned> >& usedfs, unsigned& reused_size, bool root_level);
   public:
+    ReuseSorters(): tmp_seq_cnt(0) {}
     void encodeBySorter(vec<Formula>& fs, int max_sel, int ineq);
-
+    void keepLastSequences(void);
+    void removeLastSequences(void);
 } ;
 
 

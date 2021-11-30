@@ -422,11 +422,12 @@ Formula buildConstraint(const Linear& c, int max_cost)
     }catch (Exception_TooBig){
         lastCost = FEnv::topSize();
         FEnv::pop();
+        removeLastSequences();
         lastRet = _undef_;
         return _undef_;
     }
 
-    if (opt_verbosity >= 1 && opt_minimization != 1 || opt_verbosity >= 2) {
+    if (opt_verbosity >= 2) {
         if (FEnv::topSize() > 0) {
             reportf("Sorter-cost:%5d     ", FEnv::topSize());
             reportf("Base:"); for (int i = 0; i < base.size(); i++) reportf(" %d", base[i]); reportf("\n");
@@ -435,6 +436,7 @@ Formula buildConstraint(const Linear& c, int max_cost)
     lastCost = FEnv::topSize(), lastRet = ret;
     if (opt_maxsat_msu && opt_minimization == 1) FEnv::stack.pop();
     else FEnv::keep();
+    keepLastSequences();
 
     return c.lit==lit_Undef || pb_solver->use_base_assump ? ret : ~lit2fml(c.lit) | ret ;
 }

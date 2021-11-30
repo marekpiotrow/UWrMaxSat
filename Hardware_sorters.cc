@@ -54,20 +54,21 @@ static void directSort(vec<Formula>& vars, unsigned k, int ineq);
 static void directCardClauses(const vec<Formula>& invars, unsigned start, 
                      unsigned pos, unsigned j, vec<Formula>& args, int ineq);
 
+static ReuseSorters reuse_sort;
+       void keepLastSequences(void) { reuse_sort.keepLastSequences(); }
+       void removeLastSequences(void) { reuse_sort.removeLastSequences(); }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 void encodeBySorter(vec<Formula>& vars, int max_sel, int ineq)
 {
     int n = vars.size();
-    int k = opt_shared_fmls && !(opt_maxsat && (opt_minimization != 1 || max_sel * 1000 < n)) || 
+    int k = opt_maxsat && opt_maxsat_msu && opt_minimization == 1 && max_sel * 1000 >= n || 
                   max_sel < 0 || max_sel >= n ? n : max_sel;
     if ((int)k > n) k = n;
     if (k == 0) { vars.clear(); return; }
     if (k == 1) { directSort(vars, k, ineq); return; }
 
-    extern bool opt_reuse_sorters;
     if (opt_reuse_sorters) {
-        static ReuseSorters reuse_sort;
         reuse_sort.encodeBySorter(vars, k, ineq);
     } else
         oddEvenSelect(vars, k, ineq);

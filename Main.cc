@@ -685,7 +685,7 @@ int main(int argc, char** argv)
                 }
                 delete pb_solver->goal; pb_solver->goal = NULL;
             }
-            opt_maxsat = true; if (opt_seq_thres < 0) opt_seq_thres = 4;
+            if (opt_seq_thres < 0) opt_seq_thres = 4;
             if (opt_minimization < 0) opt_minimization = 1; // alt (unsat based) algorithm
             pb_solver->maxsat_solve(convert(opt_command));
         }
@@ -719,6 +719,6 @@ int main(int argc, char** argv)
           reportf("Out of memory exception caught\n");
         }
         outputResult(*pb_solver, false);
-        exit(0);
+        std::_Exit(0);
   }
 }

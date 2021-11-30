@@ -342,13 +342,13 @@ void clausify(SimpSolver& s, const vec<Formula>& fs, vec<Lit>& out)
     else
         for (int i = fs.size()-1; i >= 0; i--) {
             out.push(c.basicClausify(fs[i]));
-	    if (!opt_shared_fmls) {
+	    if (!opt_shared_fmls && !opt_reuse_sorters) {
 	        int diff = FEnv::nodes.size() - FEnv::stack.last();
 	        if (diff > 1000) FEnv::nodes.shrink(diff);
 		FEnv::stack.pop();
 	    }
 	}
-    if (!opt_shared_fmls) {
+    if (!opt_shared_fmls && !opt_reuse_sorters) {
         FEnv::clear(); FEnv::stack.clear();
         c.occ.clear(); c.vmap.clear(); c.vmapp.clear();
     }

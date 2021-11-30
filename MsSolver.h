@@ -42,6 +42,8 @@ class IntLitQueue {
 
     bool empty() { return heap.size() <= 1; }
 
+    int size() { return heap.size(); }
+
     const vec<Pair<Int, Lit> >& getHeap() const { return heap; }
 
     void clear() { heap.shrink(heap.size() - 1); }

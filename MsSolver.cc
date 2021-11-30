@@ -370,7 +370,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     assert(best_goalvalue == Int_MAX);
 
     opt_sort_thres *= opt_goal_bias;
-    opt_shared_fmls = true;
+    opt_maxsat = opt_shared_fmls = true;
 
     if (opt_cnf != NULL)
         reportf("Exporting CNF to: \b%s\b\n", opt_cnf),
@@ -824,6 +824,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             last_unsat_constraint_lit = assump_lit;
             if (constrs.size() > 0 && constrs.last()->lit == assump_lit) {
                 Minisat::vec<Lit> new_assump; 
+                if (constrs.size() > 1) constrs[0] = constrs.last(), constrs.shrink(constrs.size() - 1);
                 optimize_last_constraint(constrs, assump_ps, new_assump);
                 if (new_assump.size() > 0) {
                     delayed_assump_sum += Int(new_assump.size()) * assump_Cs.last();
@@ -923,6 +924,7 @@ SwitchSearchMethod:
                             cpuTime(), sat_solver.conflicts, goal_ps.size(), assump_ps.size());
                 }
                 opt_minimization = 2;
+                if (assump_ps.size() == 0) opt_reuse_sorters = false;
                 if (opt_convert_goal != ct_Undef) opt_convert = opt_convert_goal;
                 if (sat) {
                     try_lessthan = best_goalvalue; 

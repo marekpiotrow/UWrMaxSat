@@ -32,6 +32,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 int  estimatedAdderCost(const Linear& c);
 void encodeBySorter(vec<Formula>& fs, int max_sel, int ineq);
+void keepLastSequences(void);
+void removeLastSequences(void);
 void encodeByMerger(const vec<Formula>& in1,  const vec<Formula>& in2, vec<Formula>& outvars, unsigned k, int ineq);
 void rippleAdder(const vec<Formula>& xs, const vec<Formula>& ys, vec<Formula>& out);
 void addPb(const vec<Formula>& ps, const vec<Int>& Cs_, vec<Formula>& out, int bits);

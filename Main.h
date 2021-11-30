@@ -72,6 +72,7 @@ extern bool     opt_to_bin_search;
 extern bool     opt_maxsat_prepr;
 extern uint64_t opt_unsat_conflicts;
 
+extern bool     opt_reuse_sorters;
 
 // -- files:
 extern char*    opt_input;

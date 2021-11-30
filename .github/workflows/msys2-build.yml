@@ -1,4 +1,4 @@
-name: Build on Mac OS
+name: Build on Windows MSYS2 
 
 on:
   push:
@@ -7,11 +7,19 @@ on:
     branches: [ master ]
 
 jobs:
-  MacOS:
+  MSYS2-build-and-test:
 
-    runs-on: macos-latest
-
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
+
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: git base-devel
     - uses: actions/checkout@v2
     - name: build COMiniSatPS
       run: |
@@ -36,7 +44,7 @@ jobs:
         cd ..
         git clone https://github.com/Laakeri/maxpre
         cd maxpre
-        sed -i '' 's/-g/-D NDEBUG/' src/Makefile
+        sed -i 's/-g/-D NDEBUG/' src/Makefile
         make lib
     - name: build UWrMaxSat
       run: |

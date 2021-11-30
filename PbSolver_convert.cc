@@ -45,7 +45,6 @@ bool PbSolver::convertPbs(bool first_call)
             sat_solver.addEmptyClause();
             return false;
         }
-        extern bool opt_reuse_sorters;
         if (opt_reuse_sorters)
             std::stable_sort(&constrs[0], &constrs[0]+constrs.size(), cmpLT);
     }
@@ -54,7 +53,7 @@ bool PbSolver::convertPbs(bool first_call)
         if (constrs[i] == NULL) continue;
         Linear& c   = *constrs[i]; assert(c.lo != Int_MIN || c.hi != Int_MAX);
 
-        if (opt_verbosity >= 1) 
+        if (opt_verbosity >= 2) 
             if (first_call && !opt_maxsat) /**/ reportf("---[%4d]---> ", constrs.size() - 1 - i); 
         try {
             if (opt_convert == ct_Sorters)
@@ -74,10 +73,11 @@ bool PbSolver::convertPbs(bool first_call)
                 if (result == _undef_) linearAddition(c, converted_constrs), first_call ? ++addEncodings : ++addOptEncodings;
                 else converted_constrs.push(result);
             } else assert(false);
-            if (first_call || !(opt_maxsat_msu && opt_shared_fmls && opt_minimization == 1))
+            if (first_call || !(opt_maxsat_msu && opt_shared_fmls && opt_minimization == 1)) {
                 constrs[i]->~Linear(), constrs[i] = NULL;
-            if (!opt_shared_fmls && FEnv::nodes.size() >= 100000) { 
-                clausify(sat_solver, converted_constrs); converted_constrs.clear();
+                if (!opt_shared_fmls && !opt_reuse_sorters && FEnv::nodes.size() >= 100000) { 
+                    clausify(sat_solver, converted_constrs); converted_constrs.clear();
+                }
             }
             opt_convert = saved_opt_convert;
         } catch (std::bad_alloc& ba) {
@@ -86,7 +86,7 @@ bool PbSolver::convertPbs(bool first_call)
 	    if (opt_convert != ct_Adders)  { opt_convert = ct_Adders; continue; }
             else {
 	        reportf("Out of memery in converting constraints: %s\n",ba.what());
-	        exit(1);
+	        _Exit(1);
 	    }
         }
         if (!okay()) return false;
@@ -95,6 +95,7 @@ bool PbSolver::convertPbs(bool first_call)
     try {
         if (first_call || !(opt_maxsat_msu && opt_shared_fmls && opt_minimization == 1)) {
             constrs.clear(), mem.clear();
+            if (first_call) opt_reuse_sorters = false;
             clausify(sat_solver, converted_constrs);
         } else {
             vec<Lit> out;
@@ -106,7 +107,7 @@ bool PbSolver::convertPbs(bool first_call)
             reportf("New vars/cls: %d/%d\n", -nvars, -ncls);
     } catch (std::bad_alloc& ba) {
       reportf("Out of memery in clausifying constraints: %s\n",ba.what());
-      exit(1);
+      _Exit(1);
     }
     return okay();
 }
