@@ -19,7 +19,7 @@ jobs:
       with:
         msystem: MINGW64
         update: true
-        install: gcc git base-devel unzip zlib-devel mingw-w64-x86_64-gmp gmp-devel
+        install: mingw-w64-x86_64-toolchain mingw-w64-x86_64-zlib mingw-w64-x86_64-gmp unzip
     - uses: actions/checkout@v2
     - name: build COMiniSatPS
       run: |
