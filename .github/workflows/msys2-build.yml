@@ -19,7 +19,7 @@ jobs:
       with:
         msystem: MINGW64
         update: true
-        install: gcc git base-devel unzip zlib
+        install: gcc git base-devel unzip zlib-devel
     - uses: actions/checkout@v2
     - name: build COMiniSatPS
       run: |
