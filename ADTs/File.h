@@ -93,7 +93,7 @@ public:
         assert(mode == READ);
       #endif
         if (pos < size) return (uchar)buf[pos++];
-        if (size < File_BufSize) return EOF;
+        //if (size < File_BufSize) return EOF;
         size = read(fd, buf, File_BufSize);
         pos  = 0;
         if (size == 0) return EOF;

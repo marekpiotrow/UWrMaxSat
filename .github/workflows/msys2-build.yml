@@ -51,7 +51,6 @@ jobs:
         make config
         USESCIP= make r
     - name: test executable
-      shell: bash
       run: |
         build/release/bin/uwrmaxsat -of Examples/unsat.opb
         build/release/bin/uwrmaxsat -of Examples/garden9x9.opb
