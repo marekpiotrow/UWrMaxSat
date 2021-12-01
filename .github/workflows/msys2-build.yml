@@ -53,7 +53,7 @@ jobs:
     - name: test executable
       run: |
         build/release/bin/uwrmaxsat -of Examples/unsat.opb
-        build/release/bin/uwrmaxsat -of Examples/garden9x9.opb
+        # build/release/bin/uwrmaxsat -of Examples/garden9x9.opb
         build/release/bin/uwrmaxsat -bm Examples/satellite02ac.wcsp.wcnf
         build/release/bin/uwrmaxsat -maxpre -bm Examples/satellite02ac.wcsp.wcnf
     - name: build and test BIGWEIGHTS  
