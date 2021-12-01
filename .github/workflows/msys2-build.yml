@@ -59,6 +59,6 @@ jobs:
     - name: build and test BIGWEIGHTS  
       run: |
         USESCIP= make clean
-        sed -i '' 's/BIGWEIGHTS?=#/BIGWEIGHTS?=/' config.mk
+        sed -i 's/BIGWEIGHTS?=#/BIGWEIGHTS?=/' config.mk
         USESCIP= make r
         build/release/bin/uwrmaxsat -of Examples/stein27_bignum.opb
