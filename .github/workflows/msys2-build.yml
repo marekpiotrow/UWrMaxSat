@@ -19,7 +19,7 @@ jobs:
       with:
         msystem: MINGW64
         update: true
-        install: git patch unzip mingw-w64-x86_64-toolchain mingw-w64-x86_64-zlib mingw-w64-x86_64-gmp
+        install: git make patch unzip mingw-w64-x86_64-toolchain mingw-w64-x86_64-zlib mingw-w64-x86_64-gmp
     - uses: actions/checkout@v2
     - name: build COMiniSatPS
       run: |
