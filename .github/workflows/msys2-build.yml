@@ -19,7 +19,7 @@ jobs:
       with:
         msystem: MINGW64
         update: true
-        install: git base-devel
+        install: git base-devel unzip
     - uses: actions/checkout@v2
     - name: build COMiniSatPS
       run: |
