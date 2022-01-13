@@ -163,7 +163,7 @@ cchar* doc =
     "\n"
     "MaxSAT specific options:\n"
     "  -no-msu       Use PB specific search algoritms for MaxSAT (see -alt, -bin, -seq).\n"
-    "  -unsat-cpu=   Time to switch UNSAT search strategy to SAT/UNSAT. [def: %g conflicts]\n"
+    "  -unsat-cpu=   Time to switch UNSAT search strategy to SAT/UNSAT. [def: %lld conflicts]\n"
     "  -lex-opt      Do Boolean lexicographic optimizations on soft clauses.\n"
     "  -no-bin       Do not switch from UNSAT to SAT/UNSAT search strategy.\n"
     "  -no-ms-pre    Do not preprocess soft clauses (detect unit/am1 cores).\n"

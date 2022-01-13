@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include<algorithm>
 //-------------------------------------------------------------------------------------------------
 void    linearAddition (const Linear& c, vec<Formula>& out);        // From: PbSolver_convertAdd.C
-Formula buildConstraint(const Linear& c, int max_cost = INT_MAX);   // From: PbSolver_convertSort.C
+Formula buildConstraint(const Linear& c, bool soft_constr = true, int max_cost = INT_MAX);   // From: PbSolver_convertSort.C
 Formula convertToBdd   (const Linear& c, int max_cost = INT_MAX);   // From: PbSolver_convertBdd.C
 //-------------------------------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ bool PbSolver::convertPbs(bool first_call)
             sat_solver.addEmptyClause();
             return false;
         }
-        if (opt_reuse_sorters)
+        //if (opt_reuse_sorters)
             std::stable_sort(&constrs[0], &constrs[0]+constrs.size(), cmpLT);
     }
 
@@ -57,14 +57,14 @@ bool PbSolver::convertPbs(bool first_call)
             if (first_call && !opt_maxsat) /**/ reportf("---[%4d]---> ", constrs.size() - 1 - i); 
         try {
             if (opt_convert == ct_Sorters)
-                converted_constrs.push(buildConstraint(c)), first_call ? ++srtEncodings : ++srtOptEncodings;
+                converted_constrs.push(buildConstraint(c, !first_call)), first_call ? ++srtEncodings : ++srtOptEncodings;
             else if (opt_convert == ct_Adders)
                 linearAddition(c, converted_constrs), first_call ? ++addEncodings : ++addOptEncodings;
             else if (opt_convert == ct_BDDs)
                 converted_constrs.push(convertToBdd(c)), first_call ? ++bddEncodings : ++bddOptEncodings;
             else if (opt_convert == ct_Mixed) {
                 int adder_cost = estimatedAdderCost(c);
-                Formula result = buildConstraint(c, (int)(adder_cost * opt_sort_thres)); 
+                Formula result = buildConstraint(c, !first_call, (int)(adder_cost * opt_sort_thres)); 
                 if (result == _undef_) {
                     result = convertToBdd(c, (int)(adder_cost * opt_bdd_thres));
                     if (result != _undef_)

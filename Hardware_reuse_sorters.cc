@@ -32,15 +32,15 @@ struct seqGT { vec<int> &prevSeqSize; bool operator()(int i, int j) { return pre
 
 static constexpr unsigned SubSeq = UINT_MAX - 7;
 
-void ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq)
+int ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq, bool soft_constr)
 {
   extern PbSolver *pb_solver;
 
-  if (fs.size() == 0) return;
+  if (fs.size() == 0) return 0;
 
   pb_solver->totalSorterInputs += fs.size(); pb_solver->totalSorters++;
 
-  if (fs.size() < minStoredSeqSize) { oddEvenSelect(fs, k, ineq); return; }
+  if (fs.size() < minStoredSeqSize) { oddEvenSelect(fs, k, ineq); return 0; }
   // Note that in the values of type Formula given in fs, the 3 last bits are zeroes. 
   // We use them to store small counters in vectors: nfs, outfs and prev_elem.
   // If the counter is greater than 7, it is stored in the next element of a vector.
@@ -49,6 +49,7 @@ void ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq)
   vec<Pair<unsigned, unsigned> > usedfs;
   Map<unsigned, unsigned> unusedmap;
   unsigned cnt = 1, subseq_found = 0, fs_size = fs.size(), reused_size = 0;
+  int initCost = FEnv::topSize();
 
   Sort::sort(fs);
   nfs.push(fs[0]);
@@ -115,10 +116,12 @@ void ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq)
               j++;
           } else { outfs.push(nfs[i]); if ((nfs[i] & 7) == 0) outfs.push(nfs[i+1]); }
   } else nfs.moveTo(outfs);
+
+  int reusedCost = 0;
   if (subseq_found == 0) oddEvenSelect(fs, k, ineq);
   else {
       fs.clear();
-      encodeWithReuse(outfs, 0, outfs.size(), fs, k, ineq);
+      reusedCost = encodeWithReuse(outfs, 0, outfs.size(), fs, k, ineq, soft_constr);
   }
   if (outfs.size() != 2 || outfs[0] != SubSeq) {
       for (int i = 0; i < outfs.size(); i++) prev_elem.push(outfs[i]);
@@ -126,12 +129,13 @@ void ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq)
       prev_seq_size.push(fs_size);
       if (!opt_shared_fmls) {
           for (int i=0; i < fs.size(); i++) out_fmls.push(fs[i]);
-          out_seq.push(out_fmls.size());
+          out_seq.push(OutSequence(out_fmls.size(), ineq, FEnv::topSize() - initCost + reusedCost));
       }
       tmp_seq_cnt++;
   }
   nfs.clear();
   outfs.clear();
+  return reusedCost;
 }
 
 void ReuseSorters::updateCoverIndices(unsigned nr, vec<int>& cover, vec<int>& rev_cover, vec<Pair<unsigned,unsigned> >& usedfs,
@@ -172,11 +176,12 @@ void ReuseSorters::updateCoverIndices(unsigned nr, vec<int>& cover, vec<int>& re
   }
 }
 
-void ReuseSorters::encodeWithReuse(vec<unsigned>&outfs, int from, int to, vec<Formula>& outvars, int k, int ineq)
+int ReuseSorters::encodeWithReuse(vec<unsigned>&outfs, int from, int to, vec<Formula>& outvars, int k, int ineq, bool soft_constr)
 {
     int subseq = from;
     vec<Formula> vars[2], tmp;
     vec<int> pos[2], positions;
+    int reusedCost = 0;
 
     while (subseq < to && outfs[subseq] == SubSeq) subseq += 2;
     for (int i = subseq; i < to; outfs[i] & 7 ? i++ : i+=2) {
@@ -187,13 +192,15 @@ void ReuseSorters::encodeWithReuse(vec<unsigned>&outfs, int from, int to, vec<Fo
     pos[1].push(0);
     for (int i = from; i < subseq; i += 2) {
         int seq = outfs[i+1], mink = min(prev_seq_size[seq], k);
-        int out_len = (seq >= out_seq.size() ? 0 : out_seq[seq]-(seq ? out_seq[seq-1] : 0));
-        if (opt_shared_fmls || out_len < mink ) {
+        int out_len = (seq >= out_seq.size() ? 0 : out_seq[seq].index-(seq ? out_seq[seq-1].index : 0));
+        if (opt_shared_fmls || out_len < mink && (soft_constr || ineq != -2 || out_seq[seq].ineq != -2)) {
             int sfrom = (seq ? prev_seq[seq-1] : 0), sto = prev_seq[seq];
-            encodeWithReuse(prev_elem, sfrom, sto, tmp, k, ineq);
+            reusedCost += encodeWithReuse(prev_elem, sfrom, sto, tmp, k, ineq, soft_constr);
         } else {
-            int ofrom = (seq ? out_seq[seq-1] : 0), oto = ofrom + mink;
+            int ofrom = (seq ? out_seq[seq-1].index : 0), oto = ofrom + min(out_len, mink);
             for (int j = ofrom ; j < oto; j++) tmp.push(out_fmls[j]);
+            if (out_len < mink) for (int j = out_len; j < mink; j++) tmp.push(_0_);
+            reusedCost += out_seq[seq].cost;
         }
         for (int j = 0; j < tmp.size(); j++) vars[1].push(tmp[j]);
         pos[1].push(vars[1].size());
@@ -209,6 +216,7 @@ void ReuseSorters::encodeWithReuse(vec<unsigned>&outfs, int from, int to, vec<Fo
         positions.push(outvars.size());
     }
     oddEvenMultiMerge(outvars, positions, k, ineq);
+    return reusedCost;
 }
 
 void ReuseSorters::insertSeqElemsIntoMaps(unsigned nr, vec<Pair<unsigned,unsigned> >& usedfs, unsigned& reused_size, bool root_level)
@@ -281,7 +289,7 @@ void ReuseSorters::removeLastSequences(void)
     } else prev_seq.clear(), prev_seq_size.clear(), prev_elem.clear();
     if (!opt_shared_fmls)
         if (out_seq.size() > tmp_seq_cnt) {
-            int tmp_seq_total_size = out_seq.last() - out_seq[out_seq.size() - 1 - tmp_seq_cnt];
+            int tmp_seq_total_size = out_seq.last().index - out_seq[out_seq.size() - 1 - tmp_seq_cnt].index;
             out_seq.shrink(tmp_seq_cnt);
             out_fmls.shrink(tmp_seq_total_size);
         } else out_seq.clear(), out_fmls.clear();

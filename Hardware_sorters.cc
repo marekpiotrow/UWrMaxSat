@@ -20,8 +20,6 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "Hardware.h"
 #include "Hardware_reuse_sorters.h"
 
-void encodeBySorter(vec<Formula>& vars, int max_sel, int ineq);
-void encodeByMerger(const vec<Formula>& in1, const vec<Formula>& in2, vec<Formula>& outvars, unsigned k, int ineq);
 
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -59,19 +57,21 @@ static ReuseSorters reuse_sort;
        void removeLastSequences(void) { reuse_sort.removeLastSequences(); }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-void encodeBySorter(vec<Formula>& vars, int max_sel, int ineq)
+int encodeBySorter(vec<Formula>& vars, int max_sel, int ineq, bool soft_constr)
 {
     int n = vars.size();
     int k = opt_maxsat && opt_maxsat_msu && opt_minimization == 1 && max_sel * 1000 >= n || 
                   max_sel < 0 || max_sel >= n ? n : max_sel;
     if ((int)k > n) k = n;
-    if (k == 0) { vars.clear(); return; }
-    if (k == 1) { directSort(vars, k, ineq); return; }
+    if (k == 0) { vars.clear(); return 0; }
+    if (k == 1) { directSort(vars, k, ineq); return 0; }
 
+    int reusedCost = 0;
     if (opt_reuse_sorters) {
-        reuse_sort.encodeBySorter(vars, k, ineq);
+        reusedCost = reuse_sort.encodeBySorter(vars, k, ineq, soft_constr);
     } else
         oddEvenSelect(vars, k, ineq);
+    return reusedCost;
 }
 
 void encodeByMerger(const vec<Formula>& in1, const vec<Formula>& in2, vec<Formula>& outvars, unsigned k, int ineq)

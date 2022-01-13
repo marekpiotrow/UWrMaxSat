@@ -27,6 +27,13 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
    pairs are put at the beginning of compacted current sequence. 
 */
 
+struct OutSequence {   // items of output sequences are stored in the vector out_fmls 
+    unsigned index;    // contains index of the next-to-last item of the corresponding output sequence;
+    int      ineq;     // the corresponding values of ineq in the encoded constraint
+    int      cost;     // contains the cost of the corresponding sorter encoding in FEnv
+    OutSequence(unsigned _index, int _ineq, int _cost): index(_index), ineq(_ineq), cost(_cost) {}
+} ;
+
 class ReuseSorters {
   private:
     static const unsigned maxCount = 46; // the default value of opt_base_max - 1
@@ -38,18 +45,17 @@ class ReuseSorters {
     Map<Pair<unsigned, unsigned>, vec<int>* > fnmap; // (input, count) -> { indices in prev_seq, where the pair appered } 
     Map<unsigned, vec<int>* > fnnmap[maxCount]; // as above, but for count c in {1, 2, ..., maxCount} and in fnnmap[c-1]
     vec<Formula> out_fmls;   // if opt_shared_fmls is false, out_fmls contains elements of outputs of previous sorters;
-    vec<unsigned> out_seq;   // if opt_shared_fmls is false, out_seq contains indices of the next-to-last elements of out_fmls;
-
+    vec<OutSequence> out_seq;   // if opt_shared_fmls is false, out_seq contains info about stored sorter encodings   
     int tmp_seq_cnt;         // The number of last sequences that can be kept or removed. 
                              // They are removed if the corresponding encoding is replaced by a smaller BDD/Adder one. 
 
     void updateCoverIndices(unsigned nr, vec<int>& cover, vec<int>& rev_cover, vec<Pair<unsigned,unsigned> >& usedfs, 
                                                           Map<unsigned, unsigned>& unusedmap, bool root_level);
-    void encodeWithReuse(vec<unsigned>&outfs, int from, int to, vec<Formula>& outvars, int k, int ineq);
+    int  encodeWithReuse(vec<unsigned>&outfs, int from, int to, vec<Formula>& outvars, int k, int ineq, bool soft_constr);
     void insertSeqElemsIntoMaps(unsigned nr, vec<Pair<unsigned,unsigned> >& usedfs, unsigned& reused_size, bool root_level);
   public:
     ReuseSorters(): tmp_seq_cnt(0) {}
-    void encodeBySorter(vec<Formula>& fs, int max_sel, int ineq);
+    int  encodeBySorter(vec<Formula>& fs, int max_sel, int ineq, bool soft_constr);
     void keepLastSequences(void);
     void removeLastSequences(void);
 } ;
