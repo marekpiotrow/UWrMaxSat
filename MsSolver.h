@@ -23,6 +23,8 @@
 #define MsSolver_h
 
 #include "PbSolver.h"
+#include "VecMaps.h"
+#include "Sort.h"
 
 Int evalGoal(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls, vec<bool>& model, Minisat::vec<Lit>& soft_unsat);
 
@@ -86,14 +88,17 @@ class IntLitQueue {
 #include <scip/scipdefplugins.h>
 #endif
 
-class MsSolver : public PbSolver {
+class MsSolver final : public PbSolver {
   public:
     MsSolver(bool use_preprocessing = false) : 
           PbSolver(use_preprocessing)
+        , ipamir_used(false)
         , harden_goalval(0)
         , fixed_goalval(0)
-        , goal_gcd(1)      {}
+        , goal_gcd(1)
+        , max_input_lit(lit_Undef)  {}
 
+    bool                ipamir_used;
     Int                 harden_goalval,  //  Harden goalval used in the MaxSAT preprocessing 
                         fixed_goalval;   // The sum of weights of soft clauses that must be false
     vec<Pair<weight_t, Minisat::vec<Lit>* > > orig_soft_cls; // Soft clauses before preprocessing by MaxPre; empty if MaxPre is not used
@@ -102,7 +107,42 @@ class MsSolver : public PbSolver {
     int                 top_for_strat, top_for_hard; // Top indices to soft_cls for stratification and hardening operations.
     Map<Lit, Int>       harden_lits;    // The weights of literals included into "At most 1" clauses (MaxSAT preprocessing of soft clauese).
     vec<Pair<Lit,Int> > am1_rels;       // The weights of relaxing vars in "At most 1" clauses
+    vec<Lit>            harden_assump;  // If IPAMIR interface is used, harden soft literals are put here instead of creating unit clauses
+    vec<Lit>            global_assumptions; // If IPAMIR interface is used, sorted literals used in IPAMIR assumptions are in this vector
+    BitMap              global_assump_vars, // If IPAMIR interface is used, variables used in the global_assumptions are in this map
+                        ipamir_vars;    // If IPAMIR interface is used, variables created in the interface are in this map
+    Lit                 max_input_lit;  // If IMPAMIR interface is not used, the maximal value of literals created during reading an instance
 
+    void ipamir_reset(const vec<Lit>& assumptions) {
+        PbSolver::reset();
+        harden_goalval = fixed_goalval = 0;
+        goal_gcd = 1;
+        harden_lits.clear(); am1_rels.clear(); harden_assump.clear();
+        assumptions.copyTo(global_assumptions);
+        global_assump_vars.clear();
+        if (global_assumptions.size() > 0) {
+            Sort::sort(global_assumptions);
+            for (int i =0; i < global_assumptions.size(); i++) global_assump_vars.set(var(global_assumptions[i]), true);
+        }
+        //FEnv::stack.clear();
+    }
+
+    bool    is_input_var(Lit p) {
+        return !ipamir_used && p <= max_input_lit || ipamir_used && ipamir_vars.at(var(p));
+    }
+
+    bool    addUnitClause(Lit p) {
+        bool res = true;
+        if (ipamir_used) harden_assump.push(p);
+        else res = sat_solver.addClause(p); 
+        return res; 
+    }
+    virtual lbool   value(Var x) const { return sat_solver.value(x); }
+    virtual lbool   value(Lit p) const { return sat_solver.value(p); }
+    bool    addUnit  (Lit p) {
+        if (value(p) == l_Undef) trail.push(p);
+        return addUnitClause(p);
+    }
     void    storeSoftClause(const vec<Lit>& ps, weight_t weight) {
                 Minisat::vec<Lit> *ps_copy = new Minisat::vec<Lit>; 
                 for (int i = 0; i < ps.size(); i++) ps_copy->push(ps[i]); 
@@ -116,8 +156,9 @@ class MsSolver : public PbSolver {
             bool weighted_instance, int sat_orig_vars, int sat_orig_cls);
 #endif    
 
+    lbool   satSolveLimited(Minisat::vec<Lit> &assump_ps);
     void    maxsat_solve(solve_Command cmd = sc_Minimize); 
-    void    preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs, const Lit max_assump, const Int& max_assump_Cs, 
+    void    preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs, const Int& max_assump_Cs, 
                                            IntLitQueue& delayed_assump, Int& delayed_assump_sum);
 } ;
 

@@ -24,6 +24,10 @@ vec<cchar*>* debug_names = NULL;
 
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+void dump(long num) {
+    reportf("%ld", num);
+}
+
 void dump(Int num) {
     if      (num == Int_MIN) reportf("-oo");
     else if (num == Int_MAX) reportf("+oo");
@@ -49,6 +53,24 @@ void dump(Formula f) {
         reportf("%s@%d", sign(f)?"~":"", index(f));
 }
 
+
+void dump(const vec<Lit>& ps)
+{
+    for (int i = 0; i < ps.size(); i++){
+        dump(ps[i]);
+        if (i+1 < ps.size()) reportf(" ");
+    }
+    reportf("\n");
+}
+
+void dump(const Minisat::vec<Lit>& ps)
+{
+    for (int i = 0; i < ps.size(); i++){
+        dump(ps[i]);
+        if (i+1 < ps.size()) reportf(" ");
+    }
+    reportf("\n");
+}
 
 void dump(const vec<Lit>& ps, const vec<Int>& Cs)
 {

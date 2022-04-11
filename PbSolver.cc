@@ -500,7 +500,7 @@ bool PbSolver::rewriteAlmostClauses()
 
 //=================================================================================================
 // Main solver/optimizer:
-static PbSolver *pb_solver;
+extern MsSolver *pb_solver;
 static
 void SIGINT_interrupt(int /*signum*/) { pb_solver->sat_solver.interrupt(); pb_solver->asynch_interrupt=true; }
 
@@ -585,7 +585,6 @@ void PbSolver::solve(solve_Command cmd)
         sat_solver.toDimacs(opt_cnf),
         exit(0);
 
-    pb_solver = this;
     signal(SIGINT, SIGINT_interrupt);
 #ifdef SIGXCPU
     signal(SIGXCPU,SIGINT_interrupt);

@@ -30,9 +30,12 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 extern vec<cchar*>* debug_names;
 
+void dump(long num);
 void dump(Int num);
 void dump(Lit p);
 void dump(Formula f);
+void dump(const vec<Lit>& ps);
+void dump(const Minisat::vec<Lit>& ps);
 void dump(const vec<Lit>& ps, const vec<Int>& Cs);
 void dump(const vec<Lit>& ps, const vec<Int>& Cs, const vec<int>& assigns);
 void dump(const vec<Formula>& ps, const vec<Int>& Cs);

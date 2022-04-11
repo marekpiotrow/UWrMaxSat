@@ -340,33 +340,33 @@ Formula buildConstraint(vec<Formula>& ps, vec<Int>& Cs, vec<int>& base, Int lo, 
 //
 Formula buildConstraint(const Linear& c, bool soft_constr, int max_cost)
 {
-    static vec<Formula>    ps;
-    static vec<Int>        Cs;
-    static Int lo = Int_MIN, hi = Int_MAX;
-    static int lastCost = 0;
-    static bool negate = true; //false;
-    static Formula lastRet = _undef_;
-    int sizesDiff = Cs.size() - c.size;
+    static vec<Formula>    last_ps;
+    static vec<Int>        last_Cs;
+    static Int last_lo = Int_MIN, last_hi = Int_MAX;
+    static int last_cost = 0;
+    static Formula last_ret = _undef_;
+    static bool negate = true;
+    int sizesDiff = last_Cs.size() - c.size;
     bool lastBaseOK = sizesDiff >= 0;    
-    Int sum = 0, oldlo = lo, oldhi = hi;
+    Int sum = 0, oldlo = last_lo, oldhi = last_hi;
 
     for (int i = 0; i < c.size; i++) sum += c(i);
         
     for (int i = 0, j = 0; lastBaseOK && j < c.size; j++) {
-        while (i < Cs.size() && c(j) > Cs[i]) i++;
-        if (i == Cs.size() || c(j) < Cs[i]) lastBaseOK = false; else i++;
+        while (i < last_Cs.size() && c(j) > last_Cs[i]) i++;
+        if (i == last_Cs.size() || c(j) < last_Cs[i]) lastBaseOK = false; else i++;
     }
     bool lastEncodingOK = lastBaseOK && opt_shared_fmls && FEnv::stack.size() > 0;
     Int sumAssigned = 0, sumSetToTrue = 0;
     extern PbSolver *pb_solver;
     int j = 0;
-    for (int i = 0; lastEncodingOK && i < ps.size(); i++) {
-        Lit   psi_lit = mkLit(index(ps[i]),sign(ps[i]));
+    for (int i = 0; lastEncodingOK && i < last_ps.size(); i++) {
+        Lit   psi_lit = mkLit(index(last_ps[i]),sign(last_ps[i]));
         lbool psi_val = pb_solver->value(psi_lit);
-        if (j < c.size && psi_lit == (negate ? ~c[j] : c[j]) && Cs[i] == c(j)) j++;
+        if (j < c.size && psi_lit == (negate ? ~c[j] : c[j]) && last_Cs[i] == c(j)) j++;
         else if (psi_val != l_Undef) {
-            if (psi_val == l_True) sumSetToTrue += Cs[i];
-            sumAssigned += Cs[i];
+            if (psi_val == l_True) sumSetToTrue += last_Cs[i];
+            sumAssigned += last_Cs[i];
         }
         else if (j < c.size) lastEncodingOK = false;
     }
@@ -374,28 +374,28 @@ Formula buildConstraint(const Linear& c, bool soft_constr, int max_cost)
     //negate = (c.hi == Int_MAX && c(c.size-1) == 1 && c.lo >= sum/2 && !lastEncodingOK || negate && lastEncodingOK) 
     //             && opt_maxsat && opt_minimization == 1 && c.size > 1000;
     if (negate) {
-        lo = c.hi == Int_MAX ? Int_MIN : sum - c.hi;
-        hi = c.lo == Int_MIN ? Int_MAX : sum - c.lo;
-    } else lo = c.lo, hi = c.hi;
+        last_lo = c.hi == Int_MAX ? Int_MIN : sum - c.hi;
+        last_hi = c.lo == Int_MIN ? Int_MAX : sum - c.lo;
+    } else last_lo = c.lo, last_hi = c.hi;
     if (!lastEncodingOK) {
-        ps.clear(), Cs.clear();
+        last_ps.clear(), last_Cs.clear();
         for (int j = 0; j < c.size; j++)
-	    ps.push(negate ? neg(lit2fml(c[j])) : lit2fml(c[j])),
-            Cs.push(c(j));
+	    last_ps.push(negate ? neg(lit2fml(c[j])) : lit2fml(c[j])),
+            last_Cs.push(c(j));
     } else {
         sum += sumAssigned;
-        if (lo != Int_MIN) lo += sumSetToTrue;
-        if (hi != Int_MAX) hi += sumSetToTrue;
+        if (last_lo != Int_MIN) last_lo += sumSetToTrue;
+        if (last_hi != Int_MAX) last_hi += sumSetToTrue;
     }
     int      cost;
     static vec<int> base;
     static vec<Formula> base_assump;
     if (!lastBaseOK || !lastEncodingOK && sizesDiff > 0 && 
                                       (base.size() <= 8 || sizesDiff * 8 > c.size)) {
-        optimizeBase(Cs, cost, base);
+        optimizeBase(last_Cs, cost, base);
         base_assump.clear();
         /**/pf("cost=%d, base.size=%d\n", cost, base.size());
-    } else if (sizesDiff == 0 && lastRet == _undef_ && lastCost > max_cost) return _undef_;
+    } else if (sizesDiff == 0 && last_ret == _undef_ && last_cost > max_cost) return _undef_;
     else if (!pb_solver->use_base_assump) {
         Int B = 1;
         for (int i = 0; i < base.size(); i++)
@@ -403,7 +403,7 @@ Formula buildConstraint(const Linear& c, bool soft_constr, int max_cost)
     }
     FEnv::push();
     if (pb_solver->use_base_assump) {
-        if (base.size() == 0 || lo != Int_MIN && hi != Int_MAX) { base_assump.clear(); /*pb_solver->use_base_assump = false;*/ }
+        if (base.size() == 0 || last_lo != Int_MIN && last_hi != Int_MAX) { base_assump.clear(); /*pb_solver->use_base_assump = false;*/ }
         else if (base_assump.size() == 0) {
             for (int i = 0; i < base.size(); i++) {
                 Lit prev_p = lit_Undef;
@@ -419,12 +419,12 @@ Formula buildConstraint(const Linear& c, bool soft_constr, int max_cost)
     }
     Formula ret;
     try {
-        ret = buildConstraint(ps, Cs, base, lo, hi, soft_constr, max_cost, base_assump, lastBaseOK);
+        ret = buildConstraint(last_ps, last_Cs, base, last_lo, last_hi, soft_constr, max_cost, base_assump, lastBaseOK);
     }catch (Exception_TooBig){
-        lastCost = FEnv::topSize();
+        last_cost = FEnv::topSize();
         FEnv::pop();
         removeLastSequences();
-        lastRet = _undef_;
+        last_ret = _undef_;
         return _undef_;
     }
 
@@ -434,7 +434,7 @@ Formula buildConstraint(const Linear& c, bool soft_constr, int max_cost)
             reportf("Base:"); for (int i = 0; i < base.size(); i++) reportf(" %d", base[i]); reportf("\n");
         } else if (!opt_maxsat && !pb_solver->use_base_assump) reportf("\n");
     }
-    lastCost = FEnv::topSize(), lastRet = ret;
+    last_cost = FEnv::topSize(), last_ret = ret;
     if (opt_maxsat_msu && opt_minimization == 1) FEnv::stack.pop();
     else FEnv::keep();
     keepLastSequences();

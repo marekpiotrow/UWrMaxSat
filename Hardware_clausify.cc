@@ -23,6 +23,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #include "Hardware.h"
 #include "FEnv.h"
+#include "MsSolver.h"
 
 struct Clausifier
 {
@@ -56,6 +57,10 @@ struct Clausifier
 CMap<int>      Clausifier::occ  (0);
 CMap<Var>      Clausifier::vmap (var_Undef);
 CMap<Lit,true> Clausifier::vmapp(lit_Undef);
+
+void clear_clausifier_static_maps() {
+    Clausifier::occ.clear(); Clausifier::vmap.clear(); Clausifier::vmapp.clear();
+}
 
 void Clausifier::usage(Formula f)
 {
@@ -350,7 +355,7 @@ void clausify(SimpSolver& s, const vec<Formula>& fs, vec<Lit>& out)
 	}
     if (!opt_shared_fmls && !opt_reuse_sorters) {
         FEnv::clear(); FEnv::stack.clear();
-        c.occ.clear(); c.vmap.clear(); c.vmapp.clear();
+        clear_clausifier_static_maps();
     }
 }
 
@@ -359,10 +364,13 @@ void clausify(SimpSolver& s, const vec<Formula>& fs)
 {
     vec<Lit>  out;
     clausify(s, fs, out);
-    extern PbSolver *pb_solver;
+    extern MsSolver *pb_solver;
     if (pb_solver->use_base_assump && out.size() == 1)
         pb_solver->base_assump.push(out[0]);
     else
         for (int i = 0; i < out.size(); i++)
-            s.addClause(out[i]);
+            if (pb_solver->ipamir_used)
+                pb_solver->addUnitClause(out[i]);
+            else
+                s.addClause(out[i]);
 }

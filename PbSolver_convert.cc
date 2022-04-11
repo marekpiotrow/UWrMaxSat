@@ -31,6 +31,13 @@ Formula buildConstraint(const Linear& c, bool soft_constr = true, int max_cost =
 Formula convertToBdd   (const Linear& c, int max_cost = INT_MAX);   // From: PbSolver_convertBdd.C
 //-------------------------------------------------------------------------------------------------
 
+void clear_shared_formulas() {
+    extern void clear_clausifier_static_maps();
+
+    FEnv::clear(); FEnv::stack.clear();
+    clear_clausifier_static_maps();
+}
+
 bool cmpLT(Linear *p, Linear *q) { return p != NULL && (q == NULL || p->size < q->size); }
 
 bool PbSolver::convertPbs(bool first_call)

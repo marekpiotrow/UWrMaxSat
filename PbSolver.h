@@ -38,6 +38,8 @@ static inline const char *toString(weight_t x) { static char buf[30]; sprintf(bu
 #define WEIGHT_MAX std::numeric_limits<weight_t>::max()
 #endif
 
+void clear_shared_formulas(void);
+
 DefineHash(Lit, return (uint)toInt(key); )
 
 //=================================================================================================
@@ -102,7 +104,7 @@ protected:
     //
     bool    propagate(Linear& c);
     void    propagate();
-    bool    addUnit  (Lit p) {
+    virtual bool    addUnit  (Lit p) {
         if (value(p) == l_Undef) trail.push(p);
         return sat_solver.addClause(p); }
 public:
@@ -115,6 +117,7 @@ protected:
     void    setupOccurs();   // Called on demand from 'propagate()'.
     void    findIntervals();
     bool    rewriteAlmostClauses();
+public:
     bool    convertPbs(bool first_call);   // Called from 'solve()' to convert PB constraints to clauses.
 
 public:
@@ -136,11 +139,18 @@ public:
                     if (!use_preprocessing) 
                         sat_solver.eliminate(true); 
                 }
+    void reset() {
+        trail.clear(); mem.clear(); constrs.clear();
+        LB_goalvalue = Int_MIN; UB_goalvalue = Int_MAX;
+        propQ_head = 0;
+        best_goalvalue = Int_MAX;
+
+    }
 
     // Helpers (semi-internal):
     //
-    lbool   value(Var x) const { return sat_solver.value(x); }
-    lbool   value(Lit p) const { return sat_solver.value(p); }
+    virtual lbool   value(Var x) const { return sat_solver.value(x); }
+    virtual lbool   value(Lit p) const { return sat_solver.value(p); }
     int     nVars()      const { return sat_solver.nVars(); }
     int     nClauses()   const { return sat_solver.nClauses(); }
     int     nConstrs()   const { return constrs.size(); }

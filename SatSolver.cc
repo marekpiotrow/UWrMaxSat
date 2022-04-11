@@ -57,7 +57,7 @@ void ExtSimpSolver::printVarsCls(bool encoding, const vec<Pair<weight_t, Minisat
 #else
     if (!ok) max=1, cnt=2;
     else {
-        cnt = assumptions.size();
+        cnt = 0; // assumptions.size();
         for (int i = 0; i < clauses.size(); i++)
           if (!satisfied(ca[clauses[i]])) {
 	      cnt++;
