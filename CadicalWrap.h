@@ -27,7 +27,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 namespace Minisat {
 
 class SimpSolver {
-protected:
+public:
     CaDiCaL::Solver *solver;
 private:
     int nvars, nclauses, old_verbosity;
@@ -36,6 +36,17 @@ private:
     int lit2val(Lit p) {
         return sign(p) ? -var(p)-1 : var(p)+1;
     }
+
+    class IpasirTerm : public CaDiCaL::Terminator {
+    public:
+        void * state;
+        int (*function) (void *);
+
+        IpasirTerm() : state(nullptr), function(nullptr) {}
+        bool terminate () { return function == nullptr ? false : function(state); }
+    } terminator;
+
+
 
 public:
     vec<Lit> conflict;
@@ -48,6 +59,12 @@ public:
     }
     ~SimpSolver() { delete solver; }
 
+    void setTermCallback(void * state, int (*terminate)(void *)) {
+        terminator.state = state; terminator.function = terminate;
+        if (terminator.function != nullptr) solver->connect_terminator(&terminator);
+        else solver->disconnect_terminator();
+    }
+
     Var newVar(bool polarity = true, bool dvar = true) {
         (void)polarity; (void)dvar;
         Var v = nvars++;
@@ -55,6 +72,7 @@ public:
         return v;
     }
     int  nVars() const { return nvars; }
+    int  nFreeVars() const { return nvars; }
     int  nClauses() const { return nclauses; }
     void setPolarity(Var, bool) { /* unsupported */ }
     void setFrozen(Var , bool ) { /* not needed */ }

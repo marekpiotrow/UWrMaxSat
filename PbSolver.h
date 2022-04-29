@@ -157,7 +157,7 @@ public:
 
     // Public variables:
     //BasicSolverStats& stats;
-    void    printStats();
+    void    printStats(bool printSatStats = true);
 
     int     declared_n_vars;            // Number of variables declared in file header (-1 = not specified).
     int     declared_n_constrs;         // Number of constraints declared in file header (-1 = not specified).

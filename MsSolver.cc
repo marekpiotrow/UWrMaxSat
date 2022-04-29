@@ -257,6 +257,7 @@ static weight_t do_stratification(MsSolver& S, vec<weight_t>& sorted_assump_Cs, 
                 if (!S.global_assump_vars.at(var(p)))
                     assump_ps[to] = p, assump_Cs[to++] = soft_cls[i].fst;
             }
+            S.last_soft_added_to_sat = start;
             Sort::sort(&soft_cls[start], sz + in_global_assumps);
             top_for_strat = start;
             break;
@@ -282,8 +283,10 @@ void MsSolver::harden_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs
         } else if (soft_cls[i].fst > ub_goalvalue) { 
             if (opt_minimization == 1) {
                 harden_lits.set(p, Int(soft_cls[i].fst));
-                if (i <= top_for_strat && soft_cls[i].snd->size() > 1) 
+                if (i <= top_for_strat && soft_cls[i].snd->size() > 1) {
                     sat_solver.addClause(*soft_cls[i].snd);
+                    last_soft_added_to_sat = i;
+                }
             }
             cnt_unit++, addUnitClause(p);
         }
@@ -432,6 +435,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     bool optimum_found = false;
     Lit last_unsat_constraint_lit = lit_Undef;
     vec<Pair<weight_t, Minisat::vec<Lit>* > > fixed_soft_cls;
+    int last_soft_in_queue = INT_MAX, last_soft_in_best_model = INT_MAX;
 
     Int LB_goalval = 0, UB_goalval = 0;    
     Sort::sort(&soft_cls[0], soft_cls.size(), LT<Pair<weight_t, Minisat::vec<Lit>*> >());
@@ -473,6 +477,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         psCs.push(Pair_new(soft_cls[i].snd->size() == 1 ? p : ~p, i));
         if (weighted_instance) sorted_assump_Cs.push(soft_cls[i].fst);
         UB_goalval += soft_cls[i].fst;
+        if (soft_cls[i].snd->size() > 1 && last_soft_in_queue == INT_MAX) last_soft_in_queue = i;
     }
     LB_goalval += fixed_goalval, UB_goalval += fixed_goalval;
     Sort::sort(psCs);
@@ -501,7 +506,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         for (int i = 0; i < soft_cls.size(); i++) { 
             if (soft_cls[i].snd->size() > 1) sat_solver.addClause(*soft_cls[i].snd);
         }
-        top_for_strat = top_for_hard = 0;
+        top_for_strat = top_for_hard = last_soft_added_to_sat = 0;
     } else {
         for (int i = soft_cls.size() - 1; i >= 0; i--) 
             for (int j = soft_cls[i].snd->size() - 1; j >= 0; j--) 
@@ -583,6 +588,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (status == l_Undef) continue;
       }
       if (status  == l_Undef) {
+        if (ipamir_used && termCallback != nullptr && 0 != termCallback(termCallbackState)) {
+            asynch_interrupt = true; break;
+        }
         if (!ipamir_used && asynch_interrupt) { reportf("*** Interrupted ***\n"); break; }
         if (opt_minimization == 1 && opt_to_bin_search && sat_solver.conflicts >= opt_unsat_conflicts) goto SwitchSearchMethod;
       } else if (status == l_True) { // SAT returned
@@ -623,19 +631,21 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                     model[var(soft_cls[i].snd->last())] = !sign(soft_cls[i].snd->last());
             Int goalvalue = evalGoal(soft_cls, model, soft_unsat) + fixed_goalval;
             extern bool opt_satisfiable_out;
-            if (
+            if (goalvalue < best_goalvalue || opt_output_top > 0 && goalvalue == best_goalvalue) {
+                {
 #ifdef USE_SCIP
-                !SCIP_found_opt && 
+                    std::lock_guard<std::mutex> lck(optsol_mtx);
+                    if (!SCIP_found_opt)
 #endif                
-                    (goalvalue < best_goalvalue || opt_output_top > 0 && goalvalue == best_goalvalue)) {
-                best_goalvalue = goalvalue;
-                model.moveTo(best_model);
+                        best_goalvalue = goalvalue, model.moveTo(best_model);
+                }
                 char* tmp = toString(best_goalvalue * goal_gcd);
                 if (opt_satisfiable_out && opt_output_top < 0 && (opt_satlive || opt_verbosity == 0))
                     printf("o %s\n", tmp), fflush(stdout);
                 else if (opt_verbosity > 0 || !opt_satisfiable_out && !ipamir_used) 
                     reportf("%s solution: %s\n", (optimum_found ? "Next" : "Found"), tmp);
                 xfree(tmp);
+                last_soft_in_best_model = last_soft_added_to_sat;
             } else model.clear(); 
             if (best_goalvalue < UB_goalvalue && opt_output_top < 0) UB_goalvalue = best_goalvalue;
             else if (opt_output_top > 1) {
@@ -844,7 +854,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         } else if (opt_minimization == 1) LB_goalvalue = next_sum(LB_goalvalue - fixed_goalval - harden_goalval, goal_Cs) + fixed_goalval + harden_goalval; 
         else LB_goalvalue = try_lessthan;
 
-        if (LB_goalvalue == best_goalvalue && opt_minimization != 1) break;
+        if (LB_goalvalue == best_goalvalue && 
+                (opt_minimization != 1 || last_soft_in_best_model <= last_soft_in_queue)) break;
 
         Int goal_diff = harden_goalval+fixed_goalval;
         if (opt_minimization == 1) {
@@ -974,6 +985,7 @@ SwitchSearchMethod:
                 for (int i = 0; i < top_for_strat; i++) { 
                     if (soft_cls[i].snd->size() > 1) sat_solver.addClause(*soft_cls[i].snd);
                 }
+                last_soft_added_to_sat = 0;
                 for (int i = 0; i < am1_rels.size(); i++) 
                     goal_ps.push(~am1_rels[i].fst), goal_Cs.push(am1_rels[i].snd), sumCs += goal_Cs.last();
                 {   Int lower_bound = LB_goalvalue-fixed_goalval-harden_goalval; int j = 0;

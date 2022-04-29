@@ -359,11 +359,7 @@ int main(int argc, char** argv)
 
     // <<== write result to file 'opt_result'
 
-    if (opt_verbosity >= 1) {
-        reportf("_______________________________________________________________________________\n\n");
-        pb_solver->printStats();
-        reportf("_______________________________________________________________________________\n");
-    }
+    if (opt_verbosity >= 1) pb_solver->printStats();
 
     if (opt_command == cmd_Minimize)
         outputResult(*pb_solver, !pb_solver->asynch_interrupt);
@@ -374,9 +370,7 @@ int main(int argc, char** argv)
     
   } catch (Minisat::OutOfMemoryException&){
         if (opt_verbosity >= 1) {
-          reportf("_______________________________________________________________________________\n\n");
           pb_solver->printStats();
-          reportf("_______________________________________________________________________________\n");
           reportf("Out of memory exception caught\n");
         }
         outputResult(*pb_solver, false);

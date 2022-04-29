@@ -48,7 +48,7 @@ struct MySolver {
         opt_minimization = 1,  opt_to_bin_search = false;
         opt_convert = opt_convert_goal = ct_Sorters; opt_seq_thres = 4;
         opt_satisfiable_out = false;
-        opt_verbosity = 1;
+        opt_verbosity = 0;
     }
 
     MsSolver* solver;
@@ -346,9 +346,12 @@ IPAMIR_API int32_t ipamir_val_lit (void * solver, int32_t lit)
  * Required state: INPUT or OPTIMAL or SAT or UNSAT
  * State after: INPUT or OPTIMAL or SAT or UNSAT (unchanged)
  */
-IPAMIR_API void ipamir_set_terminate (void * /*solver*/, void * /*state*/, int (* /*terminate*/)(void *))
+IPAMIR_API void ipamir_set_terminate (void * solver, void * state, int (* terminate)(void *))
 {
-    //this is complicated.
+    MySolver* s = (MySolver*)solver;
+    s->solver->termCallbackState = state;
+    s->solver->termCallback = terminate;
+    s->solver->sat_solver.setTermCallback(state, terminate);
 }
 
 

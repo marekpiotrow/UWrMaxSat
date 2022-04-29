@@ -71,6 +71,8 @@ using weight_t = int64_t;
 #endif
 
 class ExtSimpSolver: public SimpSolver {
+private:
+    Minisat::vec<uint32_t> elimClauses;
 public:
 #if defined(MERGESAT)
     ExtSimpSolver() { use_ccnr = false; allow_rephasing = false; 
@@ -81,6 +83,8 @@ public:
 #if !defined(CADICAL) && !defined(CRYPTOMS)
     const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;
 #endif
+    void reduceProblem();
+    void extendGivenModel(vec<lbool> &model);
     void printVarsCls(bool encoding = true, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls = NULL, int soft_cls_sz = 0);
     bool prop_check   (Lit assump, Minisat::vec<Lit>& prop, int psaving = 2); // compute a list of propagated literals given a set of assumptions
 };

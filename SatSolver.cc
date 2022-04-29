@@ -36,9 +36,35 @@ static Var mapVar(Var x, Minisat::vec<Var>& map, Var& max)
 const Minisat::Clause& ExtSimpSolver::getClause  (int i, bool &is_satisfied) const
 {
     const Minisat::Clause& ps = ca[clauses[i]];
-    is_satisfied = satisfied(ps);
+    is_satisfied = ps.mark() != 0 || satisfied(ps);
     return ps;
 }
+#endif
+
+void ExtSimpSolver::reduceProblem()
+{
+#if !defined(CADICAL) && !defined(CRYPTOMS)
+    eliminate();
+    elimclauses.copyTo(elimClauses);
+#endif
+}
+
+#if !defined(CADICAL) && !defined(CRYPTOMS)
+void ExtSimpSolver::extendGivenModel(vec<lbool> &model)
+{
+    for (int j, i = elimClauses.size()-1; i > 0; i -= j) {
+        Lit x;
+        for (j = elimClauses[i--]; j > 1; j--, i--) {
+            x = Minisat::toLit(elimClauses[i]);
+            if ((model[var(x)] ^ sign(x)) != l_False) goto next; // x is no false in the model
+        }
+        x = Minisat::toLit(elimClauses[i]);
+        model[var(x)] = lbool(!sign(x));
+next:;
+    }
+}
+#else
+void ExtSimpSolver::extendGivenModel(vec<lbool> &) {}
 #endif
 
 void ExtSimpSolver::printVarsCls(bool encoding, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls, int soft_cnt)

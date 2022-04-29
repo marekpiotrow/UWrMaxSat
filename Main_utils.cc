@@ -42,7 +42,7 @@ Read a DIMACS file and apply the SAT-solver to it.
 
 #ifdef USE_SCIP
 #include <mutex>
-std::mutex stdout_mtx;
+std::mutex stdout_mtx, optsol_mtx;
 #endif
 
 //=================================================================================================
@@ -97,7 +97,7 @@ maxPreprocessor::PreprocessorInterface *maxpre_ptr = NULL;
 #ifdef USE_SCIP
 bool     opt_use_scip_slvr = true;
 double   opt_scip_cpu      = 0;
-double   opt_scip_cpu_default = 600;
+double   opt_scip_cpu_default = 400;
 bool     opt_scip_parallel = true;
 time_t   wall_clock_time;
 #endif

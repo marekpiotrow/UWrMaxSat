@@ -96,7 +96,10 @@ class MsSolver final : public PbSolver {
         , harden_goalval(0)
         , fixed_goalval(0)
         , goal_gcd(1)
-        , max_input_lit(lit_Undef)  {}
+        , last_soft_added_to_sat(INT_MAX)
+        , max_input_lit(lit_Undef)
+        , termCallbackState(nullptr)
+        , termCallback(nullptr) {}
 
     bool                ipamir_used;
     Int                 harden_goalval,  //  Harden goalval used in the MaxSAT preprocessing 
@@ -105,13 +108,17 @@ class MsSolver final : public PbSolver {
     vec<Pair<weight_t, Minisat::vec<Lit>* > > soft_cls; // Relaxed non-unit soft clauses with weights; a relaxing var is the last one in a vector. 
     weight_t            goal_gcd; // gcd of soft_cls weights
     int                 top_for_strat, top_for_hard; // Top indices to soft_cls for stratification and hardening operations.
+    int                 last_soft_added_to_sat; // An index tp soft_cls, above which soft clauses of length > 1 are added to sat solver.
     Map<Lit, Int>       harden_lits;    // The weights of literals included into "At most 1" clauses (MaxSAT preprocessing of soft clauese).
     vec<Pair<Lit,Int> > am1_rels;       // The weights of relaxing vars in "At most 1" clauses
-    vec<Lit>            harden_assump;  // If IPAMIR interface is used, harden soft literals are put here instead of creating unit clauses
-    vec<Lit>            global_assumptions; // If IPAMIR interface is used, sorted literals used in IPAMIR assumptions are in this vector
-    BitMap              global_assump_vars, // If IPAMIR interface is used, variables used in the global_assumptions are in this map
-                        ipamir_vars;    // If IPAMIR interface is used, variables created in the interface are in this map
-    Lit                 max_input_lit;  // If IMPAMIR interface is not used, the maximal value of literals created during reading an instance
+    // IPAMIR interface
+    vec<Lit>            harden_assump;  // IPAMIR: harden soft literals are put here instead of creating unit clauses
+    vec<Lit>            global_assumptions; // IPAMIR: sorted literals used in IPAMIR assumptions are in this vector
+    BitMap              global_assump_vars, // IPAMIR: variables used in the global_assumptions are in this map
+                        ipamir_vars;        // IPAMIR: variables created in the interface are in this map
+    Lit                 max_input_lit;  // IMPAMIR: the maximal value of literals created during reading an instance
+    void *              termCallbackState;
+    int               (*termCallback)(void *state);
 
     void ipamir_reset(const vec<Lit>& assumptions) {
         PbSolver::reset();

@@ -10,6 +10,34 @@ diff -urB glucose-syrup-4.1-org/core/Solver.cc glucose-syrup-4.1/core/Solver.cc
                      // Model found:
                      return l_True;
                  }
+diff -urB glucose-syrup-4.1-org/core/Solver.h glucose-syrup-4.1/core/Solver.h
+--- glucose-syrup-4.1-org/core/Solver.h	2016-12-08 13:48:26.000000000 +0100
++++ glucose-syrup-4.1/core/Solver.h	2022-04-25 12:41:57.588009132 +0200
+@@ -106,7 +106,14 @@
+     Solver(const  Solver &s);
+     
+     virtual ~Solver();
+-    
++
++    void* termCallbackState;
++    int (*termCallback)(void* state);
++    void setTermCallback(void* state, int (*termCallback)(void*)) {
++      this->termCallbackState = state;
++      this->termCallback = termCallback;
++    }
++
+     /**
+      * Clone function
+      */
+@@ -545,7 +552,7 @@
+ inline void     Solver::clearInterrupt(){ asynch_interrupt = false; }
+ inline void     Solver::budgetOff(){ conflict_budget = propagation_budget = -1; }
+ inline bool     Solver::withinBudget() const {
+-    return !asynch_interrupt &&
++    return !asynch_interrupt && (termCallback == NULL || 0 == termCallback(termCallbackState)) &&
+            (conflict_budget    < 0 || conflicts < (uint64_t)conflict_budget) &&
+            (propagation_budget < 0 || propagations < (uint64_t)propagation_budget); }
+ 
 diff -urB glucose-syrup-4.1-org/core/SolverTypes.h glucose-syrup-4.1/core/SolverTypes.h
 --- glucose-syrup-4.1-org/core/SolverTypes.h	2016-12-08 13:48:26.000000000 +0100
 +++ glucose-syrup-4.1/core/SolverTypes.h	2020-10-16 14:19:39.110214753 +0200

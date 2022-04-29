@@ -737,7 +737,7 @@ void PbSolver::solve(solve_Command cmd)
     }
 }
 
-void PbSolver::printStats()
+void PbSolver::printStats(bool printSatStats)
 {
 #ifdef USE_SCIP
     std::lock_guard<std::mutex> lck(stdout_mtx);
@@ -746,6 +746,8 @@ void PbSolver::printStats()
     if (!statsPrinted) {
         double cpu_time = cpuTime();
         double mem_used = memUsedPeak();
+      if (printSatStats) {
+        printf("c _______________________________________________________________________________\nc \n");
 #if defined(CADICAL) || defined(CRYPTOMS)
         sat_solver.statistics();
 #else
@@ -755,6 +757,7 @@ void PbSolver::printStats()
         printf("c propagations           : %-12" PRIu64"   (%.0f /sec)\n", sat_solver.propagations, sat_solver.propagations/cpu_time);
         printf("c conflict literals      : %-12" PRIu64"   (%4.2f %% deleted)\n", sat_solver.tot_literals, (sat_solver.max_literals - sat_solver.tot_literals)*100 / (double)sat_solver.max_literals);
 #endif
+      }
         printf("c =======================[ UWrMaxSat resources usage ]===========================\n");
         if (mem_used != 0) printf("c Memory used            : %.2f MB\n", mem_used);
         printf("c CPU time               : %g s\n", cpu_time);
@@ -770,6 +773,7 @@ void PbSolver::printStats()
             printf("c OptExp Enc: Srt/BDD/Add: %llu %llu %llu\n", srtOptEncodings, bddOptEncodings, addOptEncodings);
         if (totalSorters > 0 && totalReusedInputs > 0.0)
             printf("c Reused sorter inputs   : %.0f of %.0f inputs (%.2f%% in avg) in %d sorters\n", totalReusedInputs, totalSorterInputs, totalReusedInputs*100.0/totalSorterInputs, totalSorters); 
+        printf("c _______________________________________________________________________________\n");
         statsPrinted = true;
     }
 }

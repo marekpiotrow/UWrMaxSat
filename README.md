@@ -4,8 +4,6 @@ When citing, always reference my [ICTAI 2020](https://www.ictai2020.org/) confer
 
 Since the version 1.3 you can merge the power of this solver with the [SCIP solver](https:://scipopt.org), if you have a licence to use it (see: https://scipopt.org/index.php#license). The SCIP solver will be run in a separate thread, if a MaxSAT instance is not too big (less than 100000 variables and clauses). Using parameters, you can force the solver to ran in the same thread as UWrMaxSat for a given number of seconds and UWrMaxSat will be started afterwards.
 
-In this version you will get compiler errors if you use both SCIP and Cadical solvers due to some limitations in the Cadical interface.
-
 ================================================================================
 ### Quick Install
 
@@ -40,8 +38,8 @@ In this version you will get compiler errors if you use both SCIP and Cadical so
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tax zxvf scipoptsuite-7.0.3.tgz  
-        cd scipoptsuite-7.0.3  
+        tax zxvf scipoptsuite-8.0.0.tgz  
+        cd scipoptsuite-8.0.0  
         sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt  
         mkdir build && cd build  
         cmake -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  
