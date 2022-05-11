@@ -44,7 +44,7 @@ const Minisat::Clause& ExtSimpSolver::getClause  (int i, bool &is_satisfied) con
 void ExtSimpSolver::reduceProblem()
 {
 #if !defined(CADICAL) && !defined(CRYPTOMS)
-    eliminate();
+    if (use_simplification) eliminate();
     elimclauses.copyTo(elimClauses);
 #endif
 }

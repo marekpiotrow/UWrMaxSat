@@ -25,8 +25,9 @@
 #include <vector>
 #include <future>
 #include <atomic>
+#include <scip/struct_message.h>
 
-std::atomic<bool> SCIP_found_opt(false);
+std::atomic<bool> SCIP_found_opt(false), MS_found_opt(false);
 
 SCIP_RETCODE set_scip_var(SCIP *scip, MsSolver *solver, std::vector<SCIP_VAR *> &vars, Lit lit)
 {
@@ -37,6 +38,11 @@ SCIP_RETCODE set_scip_var(SCIP *scip, MsSolver *solver, std::vector<SCIP_VAR *> 
         SCIP_Real lb = 0, ub = 1;
         if (solver->value(v) == l_False) ub = 0;
         else if (solver->value(v) == l_True) lb = 1;
+        else if (solver->ipamir_used && solver->global_assump_vars.at(v)) {
+            if (Sort::bin_search(solver->global_assumptions,lit) >= 0) {
+                if (sign(lit)) ub = 0; else lb = 1;
+            } else if (sign(lit)) lb = 1; else ub = 0;
+        }
         SCIP_CALL(SCIPcreateVarBasic(scip, &scip_var, name.c_str(), lb, ub, 0, SCIP_VARTYPE_BINARY));
         SCIP_CALL(SCIPaddVar(scip, scip_var));
         vars[var(lit)] = scip_var;
@@ -71,12 +77,12 @@ SCIP_RETCODE add_constr(SCIP *scip,
 
 void uwrLogMessage(FILE *file, const char *msg)
 {
-    if (msg != NULL) fputs("c SCIP: ", file), fputs(msg, file);
+    if (msg != nullptr) fputs("c SCIP: ", file), fputs(msg, file);
     fflush(file);
 }
 SCIP_DECL_MESSAGEINFO(uwrMessageInfo) { (void)(messagehdlr); uwrLogMessage(file, msg); }
 
-bool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbool> scip_model, MsSolver *solver)
+bool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbool> scip_model, MsSolver *solver, weight_t obj_offset)
 {
     bool found_opt = false;
 
@@ -85,11 +91,11 @@ bool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lboo
     {
         found_opt = true;
         SCIP_SOL *sol = SCIPgetBestSol(scip);
-        assert(sol != NULL);
-        // SCIP_CALL(SCIPprintSol(scip, sol, NULL, FALSE));
-        SCIP_found_opt = true;
-        solver->best_goalvalue = long(round(SCIPgetSolOrigObj(scip, sol)));
-        reportf("SCIP optimum = %ld\n", tolong(solver->best_goalvalue));
+        assert(sol != nullptr);
+        // SCIP_CALL(SCIPprintSol(scip, sol, nullptr, FALSE));
+        solver->best_goalvalue = long(round(SCIPgetSolOrigObj(scip, sol))) + obj_offset;
+        if (!solver->ipamir_used || opt_verbosity >= 2) 
+            reportf("SCIP optimum = %ld\n", tolong(solver->best_goalvalue));
         for (Var x = 0; x < (int)vars.size(); x++)
         {
             if (vars[x] != nullptr) {
@@ -100,7 +106,7 @@ bool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lboo
         extern bool opt_satisfiable_out;
         opt_satisfiable_out = false;
     } else
-        reportf("SCIP timeout\n");
+        if (!solver->ipamir_used) reportf("SCIP timeout\n");
 
     // 6. release
     for (auto v: vars)
@@ -110,26 +116,34 @@ bool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lboo
     // 7. if optimum found, exit
     if (found_opt) {
         std::lock_guard<std::mutex> lck(optsol_mtx);
+        if (!MS_found_opt) {
+            SCIP_found_opt.store(true);
 
-        vec<lbool> opt_model(scip_model.size()); 
-        for (int i = scip_model.size() - 1; i >= 0 ; i--) opt_model[i] = scip_model[i];
-        solver->sat_solver.extendGivenModel(opt_model);
-        solver->best_model.clear();
-        for (int x = 0; x < solver->pb_n_vars; x++) solver->best_model.push(opt_model[x] != l_False);
+            vec<lbool> opt_model(scip_model.size()); 
+            for (int i = scip_model.size() - 1; i >= 0 ; i--) opt_model[i] = scip_model[i];
+            solver->sat_solver.extendGivenModel(opt_model);
+            solver->best_model.clear();
+            for (int x = 0; x < solver->pb_n_vars; x++) solver->best_model.push(opt_model[x] != l_False);
 
-        if (opt_verbosity >= 1) {
-            SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip);
-            mh->messageinfo = uwrMessageInfo;
-            SCIP_CALL(SCIPsetMessagehdlr(scip, mh));
-            printf("c _______________________________________________________________________________\nc \n");
-            SCIPprintStatusStatistics(scip, NULL);
-            SCIPprintOrigProblemStatistics(scip, NULL);
-            SCIPprintTimingStatistics(scip, NULL);
-            solver->printStats(false);
+            if (opt_verbosity >= 1) {
+                SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip);
+                auto mi = mh->messageinfo;
+                mh->messageinfo = uwrMessageInfo;
+                SCIP_CALL(SCIPsetMessagehdlr(scip, mh));
+                printf("c _______________________________________________________________________________\nc \n");
+                SCIPprintStatusStatistics(scip, nullptr);
+                SCIPprintOrigProblemStatistics(scip, nullptr);
+                SCIPprintTimingStatistics(scip, nullptr);
+                mh->messageinfo = mi;
+                SCIP_CALL(SCIPsetMessagehdlr(scip, mh));
+                solver->printStats(false);
+            }
+            if (!solver->ipamir_used) {
+                outputResult(*solver, true);
+                //SCIP_CALL(SCIPfree(&scip));
+                std::_Exit(0);
+            }
         }
-        outputResult(*solver, true);
-        //SCIP_CALL(SCIPfree(&scip));
-        std::_Exit(0);
     }
     SCIP_CALL(SCIPfree(&scip));
     return found_opt;
@@ -167,15 +181,16 @@ bool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
 
     extern double opt_scip_cpu;
     extern bool opt_scip_parallel;
-    reportf("Using SCIP solver, version %.1f.%d, https://www.scipopt.org\n", 
+    if (!ipamir_used || opt_verbosity >= 2) reportf("Using SCIP solver, version %.1f.%d, https://www.scipopt.org\n", 
             SCIPversion(), SCIPtechVersion());
 
     // 1. create scip context object
     SCIP *scip = nullptr;
     SCIP_CALL(SCIPcreate(&scip));
     SCIP_CALL(SCIPincludeDefaultPlugins(scip));
-    char *base = strrchr(opt_input,'/'); base = (base ? base+1 : opt_input); 
-    SCIP_CALL(SCIPcreateProbBasic(scip, base));
+    char *base = nullptr;
+    if (opt_input != nullptr) base = strrchr(opt_input,'/'), base = (base ? base+1 : opt_input); 
+    SCIP_CALL(SCIPcreateProbBasic(scip, (base != nullptr ? base : "IPASIR of UWrMaxSat")));
     if (opt_scip_cpu > 0) 
         SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
     if (opt_verbosity <= 1)
@@ -186,6 +201,9 @@ bool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
 
     // 2. create variable(include relax)
     std::vector<SCIP_VAR *> vars(sat_orig_vars, nullptr);
+    if (ipamir_used)
+        for (int i = 0; i < global_assumptions.size(); i++)
+            set_scip_var(scip, this, vars, global_assumptions[i]);
 
     // 3. add constraint
 #ifdef CADICAL
@@ -252,27 +270,23 @@ bool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
         weight_t weight = tolong(weight_lit.fst);
         set_var_coef(relax, weight);
     }
-    // create a var for the fixed part of objective
     if (opt_verbosity >= 2)
-        reportf("SCIPobj: obj_var=%d, obj_offset=%ld, lower_bound=%ld\n", obj_vars, obj_offset, goal_gcd * tolong(LB_goalvalue));
-    obj_offset += goal_gcd * tolong(LB_goalvalue);
-    if (obj_offset != 0)
-    {
-        SCIP_VAR *var = nullptr;
-        SCIP_CALL(SCIPcreateVarBasic(scip, &var, "obj_offset", 1, 1, double(obj_offset), SCIP_VARTYPE_BINARY));
-        SCIP_CALL(SCIPaddVar(scip, var));
-        vars.push_back(var);
-    }
+        reportf("SCIPobj: obj_var=%d, obj_offset=%ld, lower_bound=%ld\n", obj_vars, obj_offset,
+                goal_gcd * tolong(LB_goalvalue));
+    obj_offset += goal_gcd * tolong(fixed_goalval + harden_goalval);
 
     // 5. do solve
     // SCIP_CALL((SCIPwriteOrigProblem(scip, "1.lp", nullptr, FALSE)));
     // SCIP_CALL((SCIPwriteTransProblem(scip, "2.lp", nullptr, FALSE)));
-    reportf("Starting SCIP solver %s (with time-limit = %.0fs) ...\n", (opt_scip_parallel? "in a separate thread" : ""), opt_scip_cpu);
+    if (!ipamir_used) reportf("Starting SCIP solver %s (with time-limit = %.0fs) ...\n", 
+            (opt_scip_parallel? "in a separate thread" : ""), opt_scip_cpu);
 
-    static auto f = std::async((opt_scip_parallel ? std::launch::async : std::launch::deferred), 
-            scip_solve_async, scip, std::move(vars), std::move(scip_model), this);
-
-    auto b = opt_scip_parallel ? true : f.get();
-    return b;
+    if (opt_scip_parallel) {
+        static auto f = std::async(std::launch::async, 
+            scip_solve_async, scip, std::move(vars), std::move(scip_model), this, obj_offset);
+        return false;
+    } else
+        return scip_solve_async(scip, std::move(vars), std::move(scip_model), this, obj_offset);
 }
+
 #endif

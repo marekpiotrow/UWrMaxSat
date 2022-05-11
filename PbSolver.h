@@ -92,6 +92,7 @@ public:
     Linear*             goal;           // Non-normalized goal function (used in optimization). NULL means no goal function specified. NOTE! We are always minimizing.
     Int                 LB_goalvalue, UB_goalvalue;  // Lower and upper bounds on the goal value
     vec<Minisat::Lit>   base_assump;    // Used to efficiently encode (using sorters) changing goal bounds in binary search 
+    bool                statsPrinted;
 
 protected:
     vec<int>            n_occurs;       // Lit -> int: Number of occurrences.
@@ -121,10 +122,12 @@ public:
     bool    convertPbs(bool first_call);   // Called from 'solve()' to convert PB constraints to clauses.
 
 public:
-    PbSolver(bool use_preprocessing = false) 
-                : goal(NULL)
+    PbSolver(bool print_info = true, bool use_preprocessing = false) 
+                : sat_solver(print_info)
+                , goal(NULL)
                 , LB_goalvalue(Int_MIN)
                 , UB_goalvalue(Int_MAX)
+                , statsPrinted(false)
                 , propQ_head(0)
                 //, stats(sat_solver.stats_ref())
                 , declared_n_vars(-1)
@@ -142,7 +145,7 @@ public:
     void reset() {
         trail.clear(); mem.clear(); constrs.clear();
         LB_goalvalue = Int_MIN; UB_goalvalue = Int_MAX;
-        propQ_head = 0;
+        propQ_head = 0; statsPrinted = false;
         best_goalvalue = Int_MAX;
 
     }

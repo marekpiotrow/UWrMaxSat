@@ -66,8 +66,8 @@ config:
            echo 'MCL_LIB?='                           ; \
            echo 'endif'                               ; \
            echo 'ifneq ($$(USESCIP),)'                  ; \
-	   echo 'MCL_INCLUDE+=-I../scipoptsuite-7.0.3/scip/src -I../scipoptsuite-7.0.3/build/scip' ; \
-	   echo 'MCL_LIB+=-L../scipoptsuite-7.0.3/build/lib -lscip -lsoplex-pic'                 ; \
+	   echo 'MCL_INCLUDE+=-I../scipoptsuite-8.0.0/scip/src -I../scipoptsuite-8.0.0/build/scip' ; \
+	   echo 'MCL_LIB+=-L../scipoptsuite-8.0.0/build/lib -lscip -lsoplex-pic'                 ; \
            echo 'endif'                                ; \
 	   echo 'prefix?=$(prefix)'                   ) > config.mk
 
@@ -77,13 +77,13 @@ INSTALL ?= install
 
 # Target file names
 MINISATP      = uwrmaxsat#  Name of MiniSat+ main executable.
-MINISATP_SLIB = libminisatp.a#  Name of MiniSat+ static library.
-MINISATP_DLIB = libminisatp.so# Name of MiniSat+ shared library.
+MINISATP_SLIB = libuwrmaxsat.a#  Name of MiniSat+ static library.
+MINISATP_DLIB = libuwrmaxsat.so# Name of MiniSat+ shared library.
 
 # Shared Library Version
 SOMAJOR=1
-SOMINOR=0
-SORELEASE?=.0#   Declare empty to leave out from library file name.
+SOMINOR=3
+SORELEASE?=.5#   Declare empty to leave out from library file name.
 
 MINISATP_CXXFLAGS = -IADTs -include Global.h -include Main.h -D_FILE_OFFSET_BITS=64 -D __STDC_LIMIT_MACROS -Wall -Wno-parentheses -Wextra  $(MCL_INCLUDE) $(MINISAT_INCLUDE)
 MINISATP_LDFLAGS  = -Wall  $(MCL_LIB) $(MINISAT_LIB) -lz -lgmp

@@ -42,13 +42,17 @@ struct MySolver {
 
     MySolver() : nomodel(true), solving_count(0)
     {
-        solver = new MsSolver(true);
+        opt_verbosity = 0;
+        solver = new MsSolver(opt_verbosity > 0, true);
         solver->ipamir_used = true;
         opt_maxsat = true, opt_maxsat_msu = true; 
         opt_minimization = 1,  opt_to_bin_search = false;
         opt_convert = opt_convert_goal = ct_Sorters; opt_seq_thres = 4;
         opt_satisfiable_out = false;
-        opt_verbosity = 0;
+#ifdef USE_SCIP
+        opt_use_scip_slvr = true;
+        opt_scip_parallel = false; opt_scip_cpu = 120 ; // opt_scip_cpu_default; // = 400s
+#endif
     }
 
     MsSolver* solver;

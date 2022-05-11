@@ -82,16 +82,14 @@ class IntLitQueue {
 } ;
 
 #ifdef USE_SCIP
-//#include <vector>
-//#include <algorithm>
 #include <scip/scip.h>
 #include <scip/scipdefplugins.h>
 #endif
 
 class MsSolver final : public PbSolver {
   public:
-    MsSolver(bool use_preprocessing = false) : 
-          PbSolver(use_preprocessing)
+    MsSolver(bool print_info = true, bool use_preprocessing = false)
+        : PbSolver(print_info, use_preprocessing)
         , ipamir_used(false)
         , harden_goalval(0)
         , fixed_goalval(0)

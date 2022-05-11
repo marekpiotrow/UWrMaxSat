@@ -74,11 +74,15 @@ class ExtSimpSolver: public SimpSolver {
 private:
     Minisat::vec<uint32_t> elimClauses;
 public:
-#if defined(MERGESAT)
-    ExtSimpSolver() { use_ccnr = false; allow_rephasing = false; 
-        printf("c Using MergeSat SAT solver by Norbert Manthey (2021)\n"); }
+#if defined(COMINISATPS)
+    ExtSimpSolver(bool print_info = true) { 
+        if (print_info) printf("c Using COMiniSatPS SAT solver by Chanseok Oh (2016)\n"); }
+#elif defined(MERGESAT)
+    ExtSimpSolver(bool print_info = true) { use_ccnr = false; allow_rephasing = false; 
+        if (print_info) printf("c Using MergeSat SAT solver by Norbert Manthey (2021)\n"); }
 #elif defined(GLUCOSE4)
-    ExtSimpSolver() { printf("c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"); }
+    ExtSimpSolver(bool print_info = true) { 
+        if (print_info) printf("c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"); }
 #endif
 #if !defined(CADICAL) && !defined(CRYPTOMS)
     const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;

@@ -742,7 +742,6 @@ void PbSolver::printStats(bool printSatStats)
 #ifdef USE_SCIP
     std::lock_guard<std::mutex> lck(stdout_mtx);
 #endif
-    static bool statsPrinted = false;
     if (!statsPrinted) {
         double cpu_time = cpuTime();
         double mem_used = memUsedPeak();

@@ -31,6 +31,7 @@ Read a DIMACS file and apply the SAT-solver to it.
 
 #include <unistd.h>
 #include <signal.h>
+#include <atomic>
 #include "System.h"
 #include "MsSolver.h"
 #include "PbParser.h"
@@ -270,11 +271,14 @@ void parseOptions(int argc, char** argv)
 int main(int argc, char** argv)
 {
 #ifdef USE_SCIP
+    extern std::atomic<bool> SCIP_found_opt;
     time(&wall_clock_time);
+#else
+    bool SCIP_found_opt = false;
 #endif
   try {
     parseOptions(argc, argv);
-    pb_solver = new MsSolver(opt_preprocess);
+    pb_solver = new MsSolver(true, opt_preprocess);
     signal(SIGINT , SIGINT_handler);
     signal(SIGTERM, SIGTERM_handler);
 
@@ -359,21 +363,19 @@ int main(int argc, char** argv)
 
     // <<== write result to file 'opt_result'
 
-    if (opt_verbosity >= 1) pb_solver->printStats();
+    if (opt_command == cmd_Minimize) {
+        if (!SCIP_found_opt) outputResult(*pb_solver, !pb_solver->asynch_interrupt);
+    } else if (opt_command == cmd_FirstSolution) {
+        if (!SCIP_found_opt) outputResult(*pb_solver, false);
+    }
 
-    if (opt_command == cmd_Minimize)
-        outputResult(*pb_solver, !pb_solver->asynch_interrupt);
-    else if (opt_command == cmd_FirstSolution)
-        outputResult(*pb_solver, false);
-
-    std::_Exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
-    
   } catch (Minisat::OutOfMemoryException&){
-        if (opt_verbosity >= 1) {
+        if (opt_verbosity >= 1 && !SCIP_found_opt) {
           pb_solver->printStats();
           reportf("Out of memory exception caught\n");
         }
-        outputResult(*pb_solver, false);
-        std::_Exit(0);
+        if (!SCIP_found_opt) outputResult(*pb_solver, false);
   }
+
+  std::_Exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
 }

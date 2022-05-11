@@ -405,15 +405,7 @@ diff -urB cominisatps-SAT2016/simp/Main.cc cominisatps/simp/Main.cc
 diff -urB cominisatps-SAT2016/simp/SimpSolver.cc cominisatps/simp/SimpSolver.cc
 --- cominisatps-SAT2016/simp/SimpSolver.cc	2016-05-02 03:22:00.000000000 +0200
 +++ cominisatps/simp/SimpSolver.cc	2020-07-17 09:34:07.994400936 +0200
-@@ -636,6 +636,7 @@
-     int iter = 0;
-     int n_cls, n_cls_init, n_vars;
- 
-+    printf("c Using COMiniSatPS SAT solver by Chanseok Oh (2016)\n");
-     if (nVars() == 0) goto cleanup; // User disabling preprocessing.
- 
-     // Get an initial number of clauses (more accurately).
-@@ -648,10 +649,10 @@
+@@ -648,10 +648,10 @@
      n_cls  = nClauses();
      n_vars = nFreeVars();
  
@@ -426,7 +418,7 @@ diff -urB cominisatps-SAT2016/simp/SimpSolver.cc cominisatps/simp/SimpSolver.cc
          goto cleanup; }
  
      grow = grow ? grow * 2 : 8;
-@@ -678,12 +679,12 @@
+@@ -678,12 +678,12 @@
          double cl_inc_rate  = (double)n_cls_now   / n_cls_last;
          double var_dec_rate = (double)n_vars_last / n_vars_now;
  
