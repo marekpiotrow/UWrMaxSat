@@ -29,4 +29,6 @@ void SIGINT_handler(int /*signum*/);
 void SIGTERM_handler(int signum);
 void increase_stack_size(int new_size);
 PbSolver::solve_Command convert(Command cmd);
+void parseOptions(int argc, char** argv);
+void setOptions(int argc, char** argv, bool check_files = true);
 

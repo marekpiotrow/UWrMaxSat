@@ -157,7 +157,7 @@ class MsSolver final : public PbSolver {
     void    optimize_last_constraint(vec<Linear*>& constrs, Minisat::vec<Lit>& assump_ps, Minisat::vec<Lit>& new_assump);
 
 #ifdef USE_SCIP
-    bool scip_solve(const Minisat::vec<Lit> *assump_ps, const vec<Int> *assump_Cs, const IntLitQueue *delayed_assump,
+    lbool scip_solve(const Minisat::vec<Lit> *assump_ps, const vec<Int> *assump_Cs, const IntLitQueue *delayed_assump,
             bool weighted_instance, int sat_orig_vars, int sat_orig_cls);
 #endif    
 

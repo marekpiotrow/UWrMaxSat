@@ -227,7 +227,7 @@ static weight_t do_stratification(MsSolver& S, vec<weight_t>& sorted_assump_Cs, 
             if (soft_cls[start].snd->size() > 1) p = ~p;
             if (S.global_assump_vars.at(var(p))) {
                 in_global_assumps++;
-                if (Sort::bin_search(S.global_assumptions, p) >= 0) S.harden_goalval += soft_cls[start].fst;
+                if (Sort::bin_search(S.global_assumptions, ~p) >= 0) S.harden_goalval += soft_cls[start].fst;
             }
         }
         start++;
@@ -555,9 +555,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 #ifdef USE_SCIP
     extern bool opt_use_scip_slvr;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
-    if (opt_use_scip_slvr &&
-        scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls) &&
-        SCIP_found_opt) {
+    if (opt_use_scip_slvr && l_Undef != 
+      scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls)) {
         if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, goal_gcd);
         return;
     }
@@ -1055,7 +1054,11 @@ SwitchSearchMethod:
            }
        }
     }
-    if (opt_verbosity >= 1 && !SCIP_found_opt) pb_solver->printStats();
+    if (opt_verbosity >= 1
+#ifdef USE_SCIP
+            && !SCIP_found_opt
+#endif
+            ) pb_solver->printStats();
 }
 
 int lower_bound(vec<Lit>& set, Lit elem)

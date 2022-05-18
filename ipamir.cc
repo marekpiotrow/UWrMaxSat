@@ -53,6 +53,7 @@ struct MySolver {
         opt_use_scip_slvr = true;
         opt_scip_parallel = false; opt_scip_cpu = 120 ; // opt_scip_cpu_default; // = 400s
 #endif
+        setOptions(0, NULL, false);
     }
 
     MsSolver* solver;

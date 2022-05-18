@@ -38,7 +38,7 @@ Since the version 1.3 you can merge the power of this solver with the [SCIP solv
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tax zxvf scipoptsuite-8.0.0.tgz  
+        tar zxvf scipoptsuite-8.0.0.tgz  
         cd scipoptsuite-8.0.0  
         sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt  
         mkdir build && cd build  
