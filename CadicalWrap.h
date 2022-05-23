@@ -31,7 +31,6 @@ public:
     CaDiCaL::Solver *solver;
 private:
     int nvars, nclauses, old_verbosity;
-    bool firstCall;
 
     int lit2val(Lit p) {
         return sign(p) ? -var(p)-1 : var(p)+1;
@@ -53,7 +52,7 @@ public:
     int verbosity;
     uint64_t conflicts;
 
-    SimpSolver() : nvars(0), nclauses(0), firstCall(true), conflicts(0) {
+    SimpSolver() : nvars(0), nclauses(0), conflicts(0) {
         solver = new CaDiCaL::Solver;
         verbosity = old_verbosity = solver->get("verbose");
     }
@@ -101,8 +100,6 @@ public:
     void budgetOff() { solver->limit("conflicts", -1); }
 
     lbool solveLimited() {
-        if (firstCall) {
-            firstCall = false; printf("c Using %s SAT solver by Armin Biere (2020)\n", solver->signature()); }
         if (verbosity < 0) verbosity = 0; else if (verbosity > 3) verbosity = 3;
         if (verbosity != old_verbosity) solver->set("verbose", old_verbosity = verbosity);
 

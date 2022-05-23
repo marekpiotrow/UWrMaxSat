@@ -50,10 +50,10 @@ struct MySolver {
         opt_convert = opt_convert_goal = ct_Sorters; opt_seq_thres = 4;
         opt_satisfiable_out = false;
 #ifdef USE_SCIP
-        opt_use_scip_slvr = true;
-        opt_scip_parallel = false; opt_scip_cpu = 120 ; // opt_scip_cpu_default; // = 400s
+        opt_use_scip_slvr = true; opt_scip_parallel = false;
+        opt_scip_cpu = opt_scip_cpu_default; // = 400s
 #endif
-        setOptions(0, NULL, false);
+        setOptions(0, NULL, false); // read UWrMaxSat options from the UWRFLAGS env variable
     }
 
     MsSolver* solver;

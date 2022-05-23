@@ -342,11 +342,22 @@ lbool MsSolver::satSolveLimited(Minisat::vec<Lit> &assump_ps)
       return status;
 }
 
-void reset_soft_cls(vec<Pair<weight_t,Minisat::vec<Lit>*>> &soft_cls, vec<Pair<weight_t,Minisat::vec<Lit>*>> &fixed_soft_cls, weight_t goal_gcd)
+void reset_soft_cls(vec<Pair<weight_t,Minisat::vec<Lit>*>> &soft_cls, vec<Pair<weight_t,Minisat::vec<Lit>*>> &fixed_soft_cls, vec<Pair<weight_t, Lit> > &modified_soft_cls, weight_t goal_gcd)
 {
     for (int i = 0; i < fixed_soft_cls.size(); i++)
         soft_cls.push(fixed_soft_cls[i]), fixed_soft_cls[i].fst = WEIGHT_MAX, fixed_soft_cls[i].snd = nullptr;
     Sort::sort(&soft_cls[0], soft_cls.size(), LT<Pair<weight_t, Minisat::vec<Lit>*> >());
+    for (int i = 0; i < modified_soft_cls.size(); i++) {
+        Lit p = modified_soft_cls[i].snd;
+        int fst = 0, cnt = soft_cls.size();
+        while (cnt > 0) {
+            int step = cnt / 2, mid = fst + step;
+            if (soft_cls[mid].snd->last() < p) fst = mid + 1, cnt -= step + 1; 
+            else cnt = step;
+        }
+        if (fst < soft_cls.size() && soft_cls[fst].snd->last() == p)
+            soft_cls[fst].fst += modified_soft_cls[i].fst;
+    }
     if (goal_gcd != 1)
         for (int i = soft_cls.size() - 1; i >= 0; i--) soft_cls[i].fst *= goal_gcd;
 }
@@ -432,11 +443,13 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     bool optimum_found = false;
     Lit last_unsat_constraint_lit = lit_Undef;
     vec<Pair<weight_t, Minisat::vec<Lit>* > > fixed_soft_cls;
+    vec<Pair<weight_t, Lit> > modified_soft_cls;
     int last_soft_in_queue = INT_MAX, last_soft_in_best_model = INT_MAX;
 
     Int LB_goalval = 0, UB_goalval = 0;    
     Sort::sort(&soft_cls[0], soft_cls.size(), LT<Pair<weight_t, Minisat::vec<Lit>*> >());
     int j = 0; Lit pj;
+    weight_t min_weight = 0;
     for (int i = 0; i < soft_cls.size(); ++i) {
         soft_cls[i].fst /= goal_gcd;
         if (soft_cls[i].fst < 0) { 
@@ -456,13 +469,22 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         } else if (j > 0 && p == pj)  
             soft_cls[j-1].fst += soft_cls[i].fst;
         else if (j > 0 && p == ~pj) {
-            fixed_goalval += (soft_cls[j-1].fst < soft_cls[i].fst ? soft_cls[j-1].fst : soft_cls[i].fst); 
+            weight_t wmin = (soft_cls[j-1].fst < soft_cls[i].fst ? soft_cls[j-1].fst : soft_cls[i].fst);
+            fixed_goalval += wmin; min_weight += wmin;
             soft_cls[j-1].fst -= soft_cls[i].fst;
             if (soft_cls[j-1].fst < 0) soft_cls[j-1].fst = -soft_cls[j-1].fst, soft_cls[j-1].snd->last() = pj, pj = ~pj; 
         } else {
+            if (ipamir_used && min_weight > 0) {
+                fixed_soft_cls.push(Pair_new(min_weight, new Minisat::vec<Lit>)); 
+                fixed_soft_cls.last().snd->push(pj);
+                if (j> 0 && soft_cls[j-1].fst == 0) {
+                    fixed_soft_cls.push(Pair_new(min_weight, new Minisat::vec<Lit>));
+                    fixed_soft_cls.last().snd->push(~pj);
+                } else modified_soft_cls.push(Pair_new(min_weight, ~pj));
+            }
             if (j > 0 && soft_cls[j-1].fst == 0) j--;
             if (j < i) soft_cls[j] = soft_cls[i];
-            pj = p; j++;
+            pj = p; j++; min_weight = 0;
         }
     }
     if (j < soft_cls.size()) soft_cls.shrink(soft_cls.size() - j);
@@ -557,7 +579,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
     if (opt_use_scip_slvr && l_Undef != 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls)) {
-        if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, goal_gcd);
+        if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
         return;
     }
 #endif
@@ -1025,7 +1047,7 @@ SwitchSearchMethod:
         if (LB_goalvalue   != Int_MIN) LB_goalvalue *= goal_gcd;
         if (UB_goalvalue   != Int_MAX) UB_goalvalue *= goal_gcd;
     }
-    if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, goal_gcd);
+    if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
     if (opt_verbosity >= 1 && opt_output_top < 0){
         if      (!sat)
             reportf(asynch_interrupt ? "\bUNKNOWN\b\n" : "\bUNSATISFIABLE\b\n");
@@ -1110,15 +1132,19 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
                                               IntLitQueue& delayed_assump, Int& delayed_assump_sum)
 {
     Map<Lit, vec<Lit>* > conns;
-    vec<Lit> conns_lit;
-    vec<Lit> confl;
-    vec<Lit> lits;
+    vec<Lit> conns_lit, confl, lits;
+    if (harden_assump.size() > 0) { // needed in IPAMIR
+        int old_size = global_assumptions.size(), new_size = old_size + harden_assump.size();
+        global_assumptions.growTo(new_size);
+        for (int i = old_size, j = 0; i < new_size; i++, j++)
+            global_assumptions[i] = harden_assump[j];
+    }
     for (int i = 0; i < assump_ps.size(); i++) {
         if (!is_input_var(assump_ps[i]))
             if (ipamir_used) continue; else break;
         Minisat::vec<Lit> props;
         Lit assump = assump_ps[i];
-        if (sat_solver.prop_check(assump, props))
+        if (sat_solver.prop_check(assump, props, global_assumptions))
             for (int l, j = 0; j < props.size(); j++) {
                 if ((l = Sort::bin_search(assump_ps,  ~props[j])) >= 0 && is_input_var(assump_ps[l])) {
                     if (!conns.has(assump)) conns.set(assump,new vec<Lit>());
@@ -1129,6 +1155,7 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
             }  
         else confl.push(assump);
     }
+    if (harden_assump.size() > 0) global_assumptions.shrink(harden_assump.size()); // IPAMIR
     conns.domain(conns_lit);
     if (confl.size() > 0) {
         for (int i = 0; i < conns_lit.size(); i++) {

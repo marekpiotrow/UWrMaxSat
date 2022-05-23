@@ -79,7 +79,10 @@ public:
         if (print_info) printf("c Using COMiniSatPS SAT solver by Chanseok Oh (2016)\n"); }
 #elif defined(MERGESAT)
     ExtSimpSolver(bool print_info = true) { use_ccnr = false; allow_rephasing = false; 
-        if (print_info) printf("c Using MergeSat SAT solver by Norbert Manthey (2021)\n"); }
+        if (print_info) printf("c Using MergeSat SAT solver by Norbert Manthey (2022)\n"); }
+#elif defined(CADICAL)
+    ExtSimpSolver(bool print_info = true) { 
+        if (print_info) printf("c Using %s SAT solver by Armin Biere (2022)\n", solver->signature()); }
 #elif defined(GLUCOSE4)
     ExtSimpSolver(bool print_info = true) { 
         if (print_info) printf("c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"); }
@@ -90,7 +93,8 @@ public:
     void reduceProblem();
     void extendGivenModel(vec<lbool> &model);
     void printVarsCls(bool encoding = true, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls = NULL, int soft_cls_sz = 0);
-    bool prop_check   (Lit assump, Minisat::vec<Lit>& prop, int psaving = 2); // compute a list of propagated literals given a set of assumptions
+    // compute a list of propagated literals for a given literal lit under some possible global assumptions
+    bool prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int psaving = 2);
 };
 
 #endif
