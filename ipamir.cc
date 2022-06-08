@@ -244,6 +244,8 @@ IPAMIR_API void ipamir_assume (void * solver, int32_t lit)
  * Required state: INPUT or OPTIMAL or SAT or UNSAT
  * State after: INPUT or OPTIMAL or SAT or UNSAT or ERROR
  */
+extern "C++" void clear_shared_formulas();
+
 IPAMIR_API int ipamir_solve (void * solver)
 {
     MySolver* s = (MySolver*)solver;
@@ -264,7 +266,6 @@ IPAMIR_API int ipamir_solve (void * solver)
     s->new_soft_lit.clear();
     s->solver->ipamir_reset(s->assumptions);
 
-    extern void clear_shared_formulas();
     clear_shared_formulas();
 
     s->solver->maxsat_solve(PbSolver::sc_Minimize);

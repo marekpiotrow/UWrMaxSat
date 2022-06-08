@@ -252,8 +252,8 @@ diff -urB cominisatps-SAT2016/core/Solver.h cominisatps/core/Solver.h
  inline void     Solver::toDimacs     (const char* file, Lit p, Lit q, Lit r){ vec<Lit> as; as.push(p); as.push(q); as.push(r); toDimacs(file, as); }
 -
 +// IPASIR
-+void Solver::setTermCallback(void *state, int (*termCallback)(void *)) {
-+    termCallbackState = state; termCallback = termCallback; }
++void Solver::setTermCallback(void *state, int (*termcallback)(void *)) {
++    termCallbackState = state; termCallback = termcallback; }
  
  //=================================================================================================
  // Debug etc:
