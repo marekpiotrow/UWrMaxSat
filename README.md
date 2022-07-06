@@ -4,7 +4,7 @@ When citing, always reference my [ICTAI 2020](https://www.ictai2020.org/) confer
 
 Since the version 1.3 you can merge the power of this solver with the [SCIP solver](https:://scipopt.org), if you have a licence to use it (see: https://scipopt.org/index.php#license). The SCIP solver will be run in a separate thread, if a MaxSAT instance is not too big (less than 100000 variables and clauses). Using parameters, you can force the solver to ran in the same thread as UWrMaxSat for a given number of seconds and UWrMaxSat will be started afterwards.
 
-Since the version 1.4 you can use the solver as a library with the IPAMIR interface [IPAMIR](https://maxsat-evaluations.github.io/2022/incremental.html). Some UWrMaxSat parameters can be set in the environment variable UWRFLAGS, for example, UWRFLAGS="-v1 -scpi-cpu=120".
+Since the version 1.4 you can use the solver as a library with the IPAMIR interface (see [IPAMIR](https://maxsat-evaluations.github.io/2022/incremental.html)). Some UWrMaxSat parameters can be set in the environment variable UWRFLAGS, for example, UWRFLAGS="-v1 -scip-cpu=120". It works both with the library and with the standalone application.
 
 ================================================================================
 ### Quick Install
