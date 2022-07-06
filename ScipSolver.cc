@@ -100,7 +100,7 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
         SCIP_SOL *sol = SCIPgetBestSol(scip);
         assert(sol != nullptr);
         // MY_SCIP_CALL(SCIPprintSol(scip, sol, nullptr, FALSE));
-        solver->best_goalvalue = long(round(SCIPgetSolOrigObj(scip, sol))) + obj_offset;
+        solver->best_goalvalue = obj_offset + long(round(SCIPgetSolOrigObj(scip, sol)));
         if (!solver->ipamir_used || opt_verbosity > 0) 
             reportf("SCIP optimum: %ld\n", tolong(solver->best_goalvalue));
         for (Var x = 0; x < (int)vars.size(); x++)
