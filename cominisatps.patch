@@ -1,7 +1,50 @@
+diff -urB cominisatps-SAT2016/core/Dimacs.h cominisatps/core/Dimacs.h
+--- cominisatps-SAT2016/core/Dimacs.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/core/Dimacs.h	2022-07-08 20:06:07.525169384 +0200
+@@ -26,7 +26,7 @@
+ #include "utils/ParseUtils.h"
+ #include "core/SolverTypes.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // DIMACS Parser:
+diff -urB cominisatps-SAT2016/core/Main.cc cominisatps/core/Main.cc
+--- cominisatps-SAT2016/core/Main.cc	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/core/Main.cc	2022-07-08 20:05:56.092705913 +0200
+@@ -31,7 +31,7 @@
+ #include "core/Dimacs.h"
+ #include "core/Solver.h"
+ 
+-using namespace Minisat;
++using namespace COMinisatPS;
+ 
+ //=================================================================================================
+ 
 diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
 --- cominisatps-SAT2016/core/Solver.cc	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/core/Solver.cc	2020-07-17 09:34:07.994400936 +0200
-@@ -150,6 +150,7 @@
++++ cominisatps/core/Solver.cc	2022-07-11 16:06:06.221622627 +0200
+@@ -25,7 +25,7 @@
+ #include "mtl/Sort.h"
+ #include "core/Solver.h"
+ 
+-using namespace Minisat;
++using namespace COMinisatPS;
+ 
+ #ifdef BIN_DRUP
+ int Solver::buf_len = 0;
+@@ -117,6 +117,9 @@
+   , conflict_budget    (-1)
+   , propagation_budget (-1)
+   , asynch_interrupt   (false)
++  , termCallbackState  (nullptr)
++  , termCallback       (nullptr)
++
+ {}
+ 
+ 
+@@ -150,6 +153,7 @@
      trail    .capacity(v+1);
      setDecisionVar(v, dvar);
  
@@ -9,7 +52,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
      // Additional space needed for stamping.
      // TODO: allocate exact memory.
      seen      .push(0);
-@@ -550,16 +551,20 @@
+@@ -550,16 +554,20 @@
  |    Specialized analysis procedure to express the final conflict in terms of assumptions.
  |    Calculates the (possibly empty) set of assumptions that led to the assignment of 'p', and
  |    stores the result in 'out_conflict'.
@@ -33,7 +76,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
  
      for (int i = trail.size()-1; i >= trail_lim[0]; i--){
          Var x = var(trail[i]);
-@@ -577,7 +582,9 @@
+@@ -577,7 +585,9 @@
          }
      }
  
@@ -44,7 +87,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
  }
  
  
-@@ -650,12 +657,22 @@
+@@ -650,12 +660,22 @@
                  *j++ = w; continue; }
  
              // Look for new watch:
@@ -71,7 +114,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
              // Did not find watch -- clause is unit under assignment:
              *j++ = w;
              if (value(first) == l_False){
-@@ -789,7 +806,8 @@
+@@ -789,7 +809,8 @@
          ok = stampAll(true);
  
      checkGarbage();
@@ -81,7 +124,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
  
      simpDB_assigns = nAssigns();
      simpDB_props   = clauses_literals + learnts_literals;   // (shouldn't depend on stats really, but it will do for now)
-@@ -933,6 +951,7 @@
+@@ -933,6 +954,7 @@
              conflicts++; nof_conflicts--;
              if (conflicts == 100000 && learnts_core.size() < 100) core_lbd_cut = 5;
              if (decisionLevel() == 0) return l_False;
@@ -89,7 +132,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
  
              learnt_clause.clear();
              analyze(confl, learnt_clause, backtrack_level, lbd);
-@@ -998,7 +1017,7 @@
+@@ -998,7 +1020,7 @@
                  restart = lbd_queue.full() && (lbd_queue.avg() * K > global_lbd_sum / conflicts_glue);
                  cached = true;
              }
@@ -98,7 +141,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
                  lbd_queue.clear();
                  // Reached bound on number of conflicts:
                  progress_estimate = progressEstimate();
-@@ -1017,22 +1036,18 @@
+@@ -1017,22 +1039,18 @@
                  reduceDB(); }
  
              Lit next = lit_Undef;
@@ -130,7 +173,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
                  // New variable decision:
                  decisions++;
                  next = pickBranchLit();
-@@ -1101,25 +1116,23 @@
+@@ -1101,25 +1119,23 @@
  
      solves++;
  
@@ -163,7 +206,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
  
      // Search:
      int phase_allotment = 100;
-@@ -1127,9 +1140,9 @@
+@@ -1127,9 +1143,9 @@
          int weighted = glucose_restart ? phase_allotment * 2 : phase_allotment;
          fflush(stdout);
  
@@ -175,7 +218,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
              break; // Should break here for correctness in incremental SAT solving.
  
          glucose_restart = !glucose_restart;
-@@ -1137,9 +1150,6 @@
+@@ -1137,9 +1153,6 @@
              phase_allotment += phase_allotment / 10;
      }
  
@@ -187,7 +230,7 @@ diff -urB cominisatps-SAT2016/core/Solver.cc cominisatps/core/Solver.cc
  #endif
 diff -urB cominisatps-SAT2016/core/Solver.h cominisatps/core/Solver.h
 --- cominisatps-SAT2016/core/Solver.h	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/core/Solver.h	2022-04-22 09:48:23.000000000 +0200
++++ cominisatps/core/Solver.h	2022-07-08 20:06:07.521169224 +0200
 @@ -23,7 +23,7 @@
  #ifndef Minisat_Solver_h
  #define Minisat_Solver_h
@@ -197,6 +240,15 @@ diff -urB cominisatps-SAT2016/core/Solver.h cominisatps/core/Solver.h
  
  #define GLUCOSE23
  //#define EXTRA_VAR_ACT_BUMP
+@@ -48,7 +48,7 @@
+ #define TIER2 2
+ #define CORE  3
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // Solver -- the main class:
 @@ -143,6 +143,10 @@
      void    budgetOff();
      void    interrupt();          // Trigger a (potentially asynchronous) interruption of the solver.
@@ -259,7 +311,16 @@ diff -urB cominisatps-SAT2016/core/Solver.h cominisatps/core/Solver.h
  // Debug etc:
 diff -urB cominisatps-SAT2016/core/SolverTypes.h cominisatps/core/SolverTypes.h
 --- cominisatps-SAT2016/core/SolverTypes.h	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/core/SolverTypes.h	2020-07-17 09:34:07.994400936 +0200
++++ cominisatps/core/SolverTypes.h	2022-07-08 20:06:07.533169713 +0200
+@@ -32,7 +32,7 @@
+ #include "mtl/Map.h"
+ #include "mtl/Alloc.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // Variables, literals, lifted booleans, clauses:
 @@ -49,7 +49,7 @@
      int     x;
  
@@ -278,9 +339,54 @@ diff -urB cominisatps-SAT2016/core/SolverTypes.h cominisatps/core/SolverTypes.h
  inline  Lit  operator ~(Lit p)              { Lit q; q.x = p.x ^ 1; return q; }
  inline  Lit  operator ^(Lit p, bool b)      { Lit q; q.x = p.x ^ (unsigned int)b; return q; }
  inline  bool sign      (Lit p)              { return p.x & 1; }
+diff -urB cominisatps-SAT2016/mtl/Alg.h cominisatps/mtl/Alg.h
+--- cominisatps-SAT2016/mtl/Alg.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/Alg.h	2022-07-08 20:06:07.565171010 +0200
+@@ -23,7 +23,7 @@
+ 
+ #include "mtl/Vec.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // Useful functions on vector-like types:
+diff -urB cominisatps-SAT2016/mtl/Alloc.h cominisatps/mtl/Alloc.h
+--- cominisatps-SAT2016/mtl/Alloc.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/Alloc.h	2022-07-08 20:06:07.581171659 +0200
+@@ -24,7 +24,7 @@
+ #include "mtl/XAlloc.h"
+ #include "mtl/Vec.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // Simple Region-based memory allocator:
+diff -urB cominisatps-SAT2016/mtl/Heap.h cominisatps/mtl/Heap.h
+--- cominisatps-SAT2016/mtl/Heap.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/Heap.h	2022-07-08 20:06:07.593172145 +0200
+@@ -23,7 +23,7 @@
+ 
+ #include "mtl/Vec.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // A heap implementation with support for decrease/increase key.
 diff -urB cominisatps-SAT2016/mtl/Map.h cominisatps/mtl/Map.h
 --- cominisatps-SAT2016/mtl/Map.h	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/mtl/Map.h	2021-10-27 11:36:49.079164839 +0200
++++ cominisatps/mtl/Map.h	2022-07-08 20:06:07.569171172 +0200
+@@ -23,7 +23,7 @@
+ #include "mtl/IntTypes.h"
+ #include "mtl/Vec.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // Default hash/equals functions
 @@ -66,8 +66,8 @@
      int        size;
  
@@ -292,6 +398,30 @@ diff -urB cominisatps-SAT2016/mtl/Map.h cominisatps/mtl/Map.h
  
      bool    checkCap(int new_size) const { return new_size > cap; }
  
+diff -urB cominisatps-SAT2016/mtl/Queue.h cominisatps/mtl/Queue.h
+--- cominisatps-SAT2016/mtl/Queue.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/Queue.h	2022-07-08 20:06:07.597172308 +0200
+@@ -23,7 +23,7 @@
+ 
+ #include "mtl/Vec.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ 
+diff -urB cominisatps-SAT2016/mtl/Sort.h cominisatps/mtl/Sort.h
+--- cominisatps-SAT2016/mtl/Sort.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/Sort.h	2022-07-08 20:06:07.609172794 +0200
+@@ -27,7 +27,7 @@
+ // Some sorting algorithms for vec's
+ 
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ template<class T>
+ struct LessThan_default {
 diff -urB cominisatps-SAT2016/mtl/template.mk cominisatps/mtl/template.mk
 --- cominisatps-SAT2016/mtl/template.mk	2016-05-02 03:22:00.000000000 +0200
 +++ cominisatps/mtl/template.mk	2020-07-17 11:36:18.589345683 +0200
@@ -315,7 +445,16 @@ diff -urB cominisatps-SAT2016/mtl/template.mk cominisatps/mtl/template.mk
  		  echo Depends on: $${dir}; \
 diff -urB cominisatps-SAT2016/mtl/Vec.h cominisatps/mtl/Vec.h
 --- cominisatps-SAT2016/mtl/Vec.h	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/mtl/Vec.h	2021-10-27 11:36:29.850452660 +0200
++++ cominisatps/mtl/Vec.h	2022-07-08 20:06:07.585171821 +0200
+@@ -27,7 +27,7 @@
+ #include "mtl/IntTypes.h"
+ #include "mtl/XAlloc.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // Automatically resizable arrays
 @@ -41,8 +41,8 @@
      int cap;
  
@@ -327,9 +466,21 @@ diff -urB cominisatps-SAT2016/mtl/Vec.h cominisatps/mtl/Vec.h
               
      // Helpers for calculating next capacity:
      static inline int  imax   (int x, int y) { int mask = (y-x) >> (sizeof(int)*8-1); return (x&mask) + (y&(~mask)); }
+diff -urB cominisatps-SAT2016/mtl/XAlloc.h cominisatps/mtl/XAlloc.h
+--- cominisatps-SAT2016/mtl/XAlloc.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/mtl/XAlloc.h	2022-07-08 20:06:07.601172469 +0200
+@@ -24,7 +24,7 @@
+ #include <errno.h>
+ #include <stdlib.h>
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ // Simple layer on top of malloc/realloc to catch out-of-memory situtaions and provide some typing:
 diff -urB cominisatps-SAT2016/simp/Main.cc cominisatps/simp/Main.cc
 --- cominisatps-SAT2016/simp/Main.cc	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/simp/Main.cc	2020-07-17 09:34:07.994400936 +0200
++++ cominisatps/simp/Main.cc	2022-07-08 20:05:56.112706723 +0200
 @@ -24,7 +24,7 @@
  
  #include <signal.h>
@@ -339,6 +490,15 @@ diff -urB cominisatps-SAT2016/simp/Main.cc cominisatps/simp/Main.cc
  
  #include "utils/System.h"
  #include "utils/ParseUtils.h"
+@@ -32,7 +32,7 @@
+ #include "core/Dimacs.h"
+ #include "simp/SimpSolver.h"
+ 
+-using namespace Minisat;
++using namespace COMinisatPS;
+ 
+ //=================================================================================================
+ 
 @@ -41,11 +41,11 @@
  {
      double cpu_time = cpuTime();
@@ -404,7 +564,16 @@ diff -urB cominisatps-SAT2016/simp/Main.cc cominisatps/simp/Main.cc
          S.eliminate(true);
 diff -urB cominisatps-SAT2016/simp/SimpSolver.cc cominisatps/simp/SimpSolver.cc
 --- cominisatps-SAT2016/simp/SimpSolver.cc	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/simp/SimpSolver.cc	2020-07-17 09:34:07.994400936 +0200
++++ cominisatps/simp/SimpSolver.cc	2022-07-08 20:05:56.120707047 +0200
+@@ -24,7 +24,7 @@
+ #include "simp/SimpSolver.h"
+ #include "utils/System.h"
+ 
+-using namespace Minisat;
++using namespace COMinisatPS;
+ 
+ //=================================================================================================
+ // Options:
 @@ -648,10 +648,10 @@
      n_cls  = nClauses();
      n_vars = nFreeVars();
@@ -434,9 +603,58 @@ diff -urB cominisatps-SAT2016/simp/SimpSolver.cc cominisatps/simp/SimpSolver.cc
  
  cleanup:
      touched  .clear(true);
+diff -urB cominisatps-SAT2016/simp/SimpSolver.h cominisatps/simp/SimpSolver.h
+--- cominisatps-SAT2016/simp/SimpSolver.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/simp/SimpSolver.h	2022-07-08 20:06:07.541170038 +0200
+@@ -27,7 +27,7 @@
+ #include "core/Solver.h"
+ 
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //=================================================================================================
+ 
+diff -urB cominisatps-SAT2016/utils/Options.cc cominisatps/utils/Options.cc
+--- cominisatps-SAT2016/utils/Options.cc	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/utils/Options.cc	2022-07-08 20:05:56.136707695 +0200
+@@ -21,9 +21,9 @@
+ #include "utils/Options.h"
+ #include "utils/ParseUtils.h"
+ 
+-using namespace Minisat;
++using namespace COMinisatPS;
+ 
+-void Minisat::parseOptions(int& argc, char** argv, bool strict)
++void COMinisatPS::parseOptions(int& argc, char** argv, bool strict)
+ {
+     int i, j;
+     for (i = j = 1; i < argc; i++){
+@@ -54,9 +54,9 @@
+ }
+ 
+ 
+-void Minisat::setUsageHelp      (const char* str){ Option::getUsageString() = str; }
+-void Minisat::setHelpPrefixStr  (const char* str){ Option::getHelpPrefixString() = str; }
+-void Minisat::printUsageAndExit (int argc, char** argv, bool verbose)
++void COMinisatPS::setUsageHelp      (const char* str){ Option::getUsageString() = str; }
++void COMinisatPS::setHelpPrefixStr  (const char* str){ Option::getHelpPrefixString() = str; }
++void COMinisatPS::printUsageAndExit (int argc, char** argv, bool verbose)
+ {
+     const char* usage = Option::getUsageString();
+     if (usage != NULL)
 diff -urB cominisatps-SAT2016/utils/Options.h cominisatps/utils/Options.h
 --- cominisatps-SAT2016/utils/Options.h	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/utils/Options.h	2020-07-17 09:34:07.994400936 +0200
++++ cominisatps/utils/Options.h	2022-07-08 20:06:07.557170686 +0200
+@@ -29,7 +29,7 @@
+ #include "mtl/Vec.h"
+ #include "utils/ParseUtils.h"
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //==================================================================================================
+ // Top-level option parse/help functions:
 @@ -282,15 +282,15 @@
          if (range.begin == INT64_MIN)
              fprintf(stderr, "imin");
@@ -456,10 +674,22 @@ diff -urB cominisatps-SAT2016/utils/Options.h cominisatps/utils/Options.h
          if (verbose){
              fprintf(stderr, "\n        %s\n", description);
              fprintf(stderr, "\n");
+diff -urB cominisatps-SAT2016/utils/ParseUtils.h cominisatps/utils/ParseUtils.h
+--- cominisatps-SAT2016/utils/ParseUtils.h	2016-05-02 03:22:00.000000000 +0200
++++ cominisatps/utils/ParseUtils.h	2022-07-08 20:06:07.553170523 +0200
+@@ -26,7 +26,7 @@
+ 
+ #include <zlib.h>
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
+ //-------------------------------------------------------------------------------------------------
+ // A simple buffered character stream class:
 diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 --- cominisatps-SAT2016/utils/System.cc	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/utils/System.cc	2021-10-27 11:52:42.226988625 +0200
-@@ -18,11 +18,13 @@
++++ cominisatps/utils/System.cc	2022-07-08 20:05:56.128707371 +0200
+@@ -18,14 +18,16 @@
  OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  **************************************************************************************************/
  
@@ -473,36 +703,58 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 -#include <stdio.h>
  #include <stdlib.h>
  
- using namespace Minisat;
-@@ -78,7 +80,7 @@
+-using namespace Minisat;
++using namespace COMinisatPS;
+ 
+ // TODO: split the memory reading functions into two: one for reading high-watermark of RSS, and
+ // one for reading the current virtual memory size.
+@@ -67,29 +69,94 @@
+     return peak_kb;
+ }
+ 
+-double Minisat::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024); }
+-double Minisat::memUsedPeak() { 
++double COMinisatPS::memUsed() { return (double)memReadStat(0) * (double)getpagesize() / (1024*1024); }
++double COMinisatPS::memUsedPeak() { 
+     double peak = memReadPeak() / 1024;
+     return peak == 0 ? memUsed() : peak; }
+ 
+ #elif defined(__FreeBSD__)
+ 
+-double Minisat::memUsed(void) {
++double COMinisatPS::memUsed(void) {
      struct rusage ru;
      getrusage(RUSAGE_SELF, &ru);
      return (double)ru.ru_maxrss / 1024; }
 -double MiniSat::memUsedPeak(void) { return memUsed(); }
-+double Minisat::memUsedPeak(void) { return memUsed(); }
++double COMinisatPS::memUsedPeak(void) { return memUsed(); }
  
  
  #elif defined(__APPLE__)
-@@ -88,8 +90,73 @@
+ #include <malloc/malloc.h>
+ 
+-double Minisat::memUsed(void) {
++double COMinisatPS::memUsed(void) {
      malloc_statistics_t t;
      malloc_zone_statistics(NULL, &t);
      return (double)t.max_size_in_use / (1024*1024); }
-+double Minisat::memUsedPeak(void) { return memUsed(); }
++double COMinisatPS::memUsedPeak(void) { return memUsed(); }
  
  #else
- double Minisat::memUsed() { 
-     return 0; }
-+double Minisat::memUsedPeak() { 
+-double Minisat::memUsed() { 
++double COMinisatPS::memUsed() { 
 +    return 0; }
-+#endif
++double COMinisatPS::memUsedPeak() { 
+     return 0; }
+ #endif
 +
 +#if !defined(_MSC_VER) && !defined(__MINGW32__)
-+void Minisat::limitMemory(uint64_t max_mem_mb)
++void COMinisatPS::limitMemory(uint64_t max_mem_mb)
 +{
 +// FIXME: OpenBSD does not support RLIMIT_AS. Not sure how well RLIMIT_DATA works instead.
 +#if defined(__OpenBSD__)
 +#define RLIMIT_AS RLIMIT_DATA
- #endif
++#endif
 +
 +    // Set limit on virtual memory:
 +    if (max_mem_mb != 0){
@@ -521,7 +773,7 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 +#endif
 +}
 +#else
-+void Minisat::limitMemory(uint64_t /*max_mem_mb*/)
++void COMinisatPS::limitMemory(uint64_t /*max_mem_mb*/)
 +{
 +    printf("WARNING! Memory limit not supported on this architecture.\n");
 +}
@@ -529,7 +781,7 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 +
 +
 +#if !defined(_MSC_VER) && !defined(__MINGW32__)
-+void Minisat::limitTime(uint32_t max_cpu_time)
++void COMinisatPS::limitTime(uint32_t max_cpu_time)
 +{
 +    if (max_cpu_time != 0){
 +        rlimit rl;
@@ -542,14 +794,14 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 +    }
 +}
 +#else
-+void Minisat::limitTime(uint32_t /*max_cpu_time*/)
++void COMinisatPS::limitTime(uint32_t /*max_cpu_time*/)
 +{
 +    printf("WARNING! CPU-time limit not supported on this architecture.\n");
 +}
 +#endif
 +
 +
-+void Minisat::sigTerm(void handler(int))
++void COMinisatPS::sigTerm(void handler(int))
 +{
 +    signal(SIGINT, handler);
 +    signal(SIGTERM,handler);
@@ -559,8 +811,14 @@ diff -urB cominisatps-SAT2016/utils/System.cc cominisatps/utils/System.cc
 +}
 diff -urB cominisatps-SAT2016/utils/System.h cominisatps/utils/System.h
 --- cominisatps-SAT2016/utils/System.h	2016-05-02 03:22:00.000000000 +0200
-+++ cominisatps/utils/System.h	2020-07-17 09:34:07.994400936 +0200
-@@ -34,6 +34,11 @@
++++ cominisatps/utils/System.h	2022-07-08 20:06:07.545170200 +0200
+@@ -29,11 +29,16 @@
+ 
+ //-------------------------------------------------------------------------------------------------
+ 
+-namespace Minisat {
++namespace COMinisatPS {
+ 
  static inline double cpuTime(void); // CPU-time in seconds.
  extern double memUsed();            // Memory in mega bytes (returns 0 for unsupported architectures).
  extern double memUsedPeak();        // Peak-memory in mega bytes (returns 0 for unsupported architectures).
@@ -572,3 +830,20 @@ diff -urB cominisatps-SAT2016/utils/System.h cominisatps/utils/System.h
  
  }
  
+@@ -43,14 +48,14 @@
+ #if defined(_MSC_VER) || defined(__MINGW32__)
+ #include <time.h>
+ 
+-static inline double Minisat::cpuTime(void) { return (double)clock() / CLOCKS_PER_SEC; }
++static inline double COMinisatPS::cpuTime(void) { return (double)clock() / CLOCKS_PER_SEC; }
+ 
+ #else
+ #include <sys/time.h>
+ #include <sys/resource.h>
+ #include <unistd.h>
+ 
+-static inline double Minisat::cpuTime(void) {
++static inline double COMinisatPS::cpuTime(void) {
+     struct rusage ru;
+     getrusage(RUSAGE_SELF, &ru);
+     return (double)ru.ru_utime.tv_sec + (double)ru.ru_utime.tv_usec / 1000000; }

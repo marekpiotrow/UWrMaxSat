@@ -33,6 +33,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #if defined(GLUCOSE3) || defined(GLUCOSE4)
 namespace Minisat = Glucose;
+#elif defined(COMINISATPS)
+namespace Minisat = COMinisatPS;
 #endif
 #ifdef GLUCOSE4
 #define rnd_decisions stats[14]
