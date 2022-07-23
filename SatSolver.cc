@@ -210,7 +210,7 @@ bool ExtSimpSolver::prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>
         }
         confl = Solver::propagate();
     }
-    if (confl == CRef_Undef) {
+    if (confl == CRef_Undef && value(lit) == l_Undef) {
         int level = decisionLevel();
         Solver::newDecisionLevel ();
         Solver::uncheckedEnqueue(lit);

@@ -204,7 +204,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     MY_SCIP_CALL(SCIPincludeDefaultPlugins(scip));
     char *base = nullptr;
     if (opt_input != nullptr) base = strrchr(opt_input,'/'), base = (base ? base+1 : opt_input); 
-    MY_SCIP_CALL(SCIPcreateProbBasic(scip, (base != nullptr ? base : "IPASIR of UWrMaxSat")));
+    MY_SCIP_CALL(SCIPcreateProbBasic(scip, (base != nullptr ? base : "IPAMIR of UWrMaxSat")));
     if (opt_scip_cpu > 0) 
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
     if (opt_verbosity <= 1)

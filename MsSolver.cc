@@ -575,9 +575,10 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         first_time=true; limitTime(start_solving_cpu + (opt_cpu_lim - start_solving_cpu)/4);
     }
 #ifdef USE_SCIP
+    if (ipamir_used) SCIP_found_opt.store(false);
     extern bool opt_use_scip_slvr;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
-    if (opt_use_scip_slvr && l_Undef != 
+    if (opt_use_scip_slvr && l_True == 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls)) {
         if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
         return;
