@@ -165,22 +165,27 @@ static Int next_sum(Int bound, const vec<Int>& cs)
 
 }
 
-/*static
-Int evalPsCs(vec<Lit>& ps, vec<Int>&Cs, vec<bool>& model)
+static
+Int evalPsCs(vec<Lit>& ps, vec<Int>&Cs, vec<bool>& model, vec<AtMost1>& am1_rels)
 {
     Int sum = 0;
     assert(ps.size() == Cs.size());
-    for (int i = 0; i < ps.size(); i++){
-        if (( var(ps[i]) >= model.size())
-        ||  ( sign(ps[i]) && model[var(ps[i])] == false)
-        ||  (!sign(ps[i]) && model[var(ps[i])] == true )
-        )
-            sum += Cs[i];
+    for (int i = 0, j = 0; i < ps.size(); i++) {
+        if ( var(ps[i]) < model.size())
+            if (sign(ps[i]) != model[var(ps[i])]) sum += Cs[i];
+            else {}
+        else {
+            while (j < am1_rels.size() && ~ps[i] < am1_rels[j].lit) j++;
+            if (j < am1_rels.size() && ~ps[i] == am1_rels[j].lit) {
+                if (!satisfied_soft_cls(&am1_rels[j].clause, model)) sum += Cs[i];
+                j++;
+            }
+        }
     }
     return sum;
 }
 
-static
+/*static
 Int evalPsCs(vec<Lit>& ps, vec<Int>&Cs, Minisat::vec<lbool>& model)
 {
     Int sum = 0;
@@ -362,6 +367,35 @@ void reset_soft_cls(vec<Pair<weight_t,Minisat::vec<Lit>*>> &soft_cls, vec<Pair<w
         for (int i = soft_cls.size() - 1; i >= 0; i--) soft_cls[i].fst *= goal_gcd;
 }
 
+static bool separate_gbmo_subgoal(vec<Int>& splitting_weights, vec<Lit>& goal_ps, vec<Int>& goal_Cs,
+        vec<Lit>& remain_goal_ps, vec<Int>& remain_goal_Cs, Int& remain_weight)
+{
+    remain_goal_ps.clear(); remain_goal_Cs.clear(); remain_weight = 0;
+    Int maxW = 0;
+    for (int i = goal_Cs.size() - 1; i >= 0; i--)
+        if (goal_Cs[i] > maxW) maxW = goal_Cs[i];
+    for (int i=splitting_weights.size()-1; i >= 0 && splitting_weights[i] > maxW; i--)
+        splitting_weights.pop();
+    if (splitting_weights.size() > 0) { // split the goal constraint into two based on GBMO properties
+        Int split_weight = splitting_weights.last();
+        splitting_weights.pop();
+        int j = 0;
+        for (int i = 0; i < goal_Cs.size(); i++)
+            if (goal_Cs[i] < split_weight) {
+                remain_goal_ps.push(goal_ps[i]);
+                remain_goal_Cs.push(goal_Cs[i]);
+                remain_weight += goal_Cs[i];
+            } else {
+                if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i];
+                j++; 
+            }
+        if (j < goal_ps.size())
+            goal_ps.shrink(goal_ps.size()-j), goal_Cs.shrink(goal_Cs.size()-j);
+        return true;
+    } else
+        return false;
+}
+
 void MsSolver::maxsat_solve(solve_Command cmd)
 {
     if (!okay()) {
@@ -434,6 +468,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     int     n_solutions = 0;    // (only for AllSolutions mode)
     vec<Pair<Lit,int> > psCs;
     vec<int8_t> multi_level_opt;
+    vec<Int> gbmo_splitting_weights, gbmo_remain_goal_Cs;
+    vec<Lit> gbmo_remain_goal_ps;
+    Int gbmo_goalval = 0, gbmo_remain_weight = 0;
     bool opt_delay_init_constraints = false, 
          opt_core_minimization = (nClauses() > 0 || soft_cls.size() < 100000);
     IntLitQueue delayed_assump;
@@ -544,7 +581,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         extern void separationIndex(const vec<weight_t>& cs, vec<int>& separation_points);
         vec<int> gbmo_points; // generalized Boolean multilevel optimization points (GBMO)
         separationIndex(sortedCs, gbmo_points); // find GBMO
-        for (int i = 0; i < gbmo_points.size(); i++) 
+        for (int i = 0; i < gbmo_points.size(); i++)
+            gbmo_splitting_weights.push(Int(sortedCs[gbmo_points[i]])),
             multi_level_opt[Sort::bin_search(sorted_assump_Cs, sortedCs[gbmo_points[i]])] |= 2;
         if (gbmo_points.size() > 0 && opt_verbosity >= 1)
             reportf("Generalized BMO splitting point(s) found and can be used.\n");
@@ -586,6 +624,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 #endif
     Minisat::vec<Lit> sat_conflicts;
     lbool status;
+    do { // a loop to process GBMO splitting points
     while (1) {
       sat_conflicts.clear();
       if (use_base_assump) for (int i = 0; i < base_assump.size(); i++) assump_ps.push(base_assump[i]);
@@ -658,9 +697,14 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 {
 #ifdef USE_SCIP
                     std::lock_guard<std::mutex> lck(optsol_mtx);
-                    if (!SCIP_found_opt)
+                    if (!SCIP_found_opt) {
 #endif                
                         best_goalvalue = goalvalue, model.moveTo(best_model);
+                        if (gbmo_remain_goal_ps.size() > 0)
+                            gbmo_goalval = evalPsCs(gbmo_remain_goal_ps, gbmo_remain_goal_Cs, best_model, am1_rels);
+#ifdef USE_SCIP
+                    }
+#endif                
                 }
                 char* tmp = toString(best_goalvalue * goal_gcd);
                 if (opt_satisfiable_out && opt_output_top < 0 && (opt_satlive || opt_verbosity == 0))
@@ -766,7 +810,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                     mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars)) : assump_lit;
                 try_lessthan = (LB_goalvalue*(100-opt_bin_percent) + best_goalvalue*(opt_bin_percent))/100;
             }
-            Int goal_diff = harden_goalval+fixed_goalval;
+            Int goal_diff = harden_goalval+fixed_goalval + gbmo_goalval;
             if (!addConstr(goal_ps, goal_Cs, try_lessthan - goal_diff, -2, assump_lit))
                 break; // unsat
             if (assump_lit != lit_Undef && !use_base_assump) {
@@ -877,10 +921,14 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         } else if (opt_minimization == 1) LB_goalvalue = next_sum(LB_goalvalue - fixed_goalval - harden_goalval, goal_Cs) + fixed_goalval + harden_goalval; 
         else LB_goalvalue = try_lessthan;
 
-        if (LB_goalvalue == best_goalvalue && 
-                (opt_minimization != 1 || last_soft_in_best_model <= last_soft_in_queue)) break;
+        if ((LB_goalvalue == best_goalvalue || sat && best_goalvalue - LB_goalvalue < gbmo_remain_weight) && 
+                (opt_minimization != 1 || last_soft_in_best_model <= last_soft_in_queue)) {
+            if (opt_minimization >= 1 && opt_verbosity >= 2) {
+                char *t; reportf("Lower bound  = %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
+            break;
+        }
 
-        Int goal_diff = harden_goalval+fixed_goalval;
+        Int goal_diff = harden_goalval+fixed_goalval+gbmo_goalval;
         if (opt_minimization == 1) {
             assump_lit = lit_Undef;
             try_lessthan = goal_diff + 2;
@@ -1010,7 +1058,8 @@ SwitchSearchMethod:
                 }
                 last_soft_added_to_sat = 0;
                 for (int i = 0; i < am1_rels.size(); i++) 
-                    goal_ps.push(~am1_rels[i].fst), goal_Cs.push(am1_rels[i].snd), sumCs += goal_Cs.last();
+                    goal_ps.push(~am1_rels[i].lit), goal_Cs.push(am1_rels[i].weight), 
+                        sumCs += goal_Cs.last();
                 {   Int lower_bound = LB_goalvalue-fixed_goalval-harden_goalval; int j = 0;
                     for (int i = 0; i < goal_Cs.size(); i++)
                         if (sumCs - goal_Cs[i] < lower_bound) {
@@ -1019,7 +1068,7 @@ SwitchSearchMethod:
                         } else { if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i]; j++; }
                     if (j < goal_ps.size()) goal_ps.shrink(goal_ps.size() - j), goal_Cs.shrink(goal_Cs.size() - j);
                 }
-                top_for_strat = 0; sorted_assump_Cs.clear(); am1_rels.clear(); harden_lits.clear();
+                top_for_strat = 0; sorted_assump_Cs.clear(); harden_lits.clear();
                 delayed_assump.clear(); delayed_assump_sum = 0;
                 if (opt_verbosity >= 1) {
                     reportf("Switching to binary search ... (after %g s and %d conflicts) with %d goal literals and %d assumptions\n", 
@@ -1028,19 +1077,64 @@ SwitchSearchMethod:
                 opt_minimization = 2;
                 if (assump_ps.size() == 0) opt_reuse_sorters = false;
                 if (opt_convert_goal != ct_Undef) opt_convert = opt_convert_goal;
+                if (assump_ps.size() == 0 && gbmo_splitting_weights.size() > 0 &&
+                    separate_gbmo_subgoal(gbmo_splitting_weights, goal_ps, goal_Cs, 
+                        gbmo_remain_goal_ps, gbmo_remain_goal_Cs, gbmo_remain_weight)) {
+                    // the goal constraint was splitted into two subgoals based on GBMO properties
+                    if (opt_verbosity >= 1)
+                        reportf("Processing the first GBMO subgoal with %d literals (linear search)\n", goal_ps.size()); 
+                    gbmo_goalval = gbmo_remain_weight;
+                    opt_minimization = 0;
+                }
                 if (sat) {
                     try_lessthan = best_goalvalue; 
-                    assump_lit = (assump_ps.size() == 0 && !use_base_assump ? lit_Undef : 
+                    assump_lit = (assump_ps.size() == 0 ? lit_Undef : 
                                                           mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
                     if (assump_lit != lit_Undef && !use_base_assump) assump_ps.push(assump_lit), assump_Cs.push(try_lessthan);
-                    if (!addConstr(goal_ps, goal_Cs, try_lessthan - fixed_goalval - harden_goalval, -2, assump_lit))
+                    if (gbmo_goalval > 0) 
+                        gbmo_goalval = evalPsCs(gbmo_remain_goal_ps, gbmo_remain_goal_Cs, best_model, am1_rels);
+                    Int diff = fixed_goalval + harden_goalval + gbmo_goalval;
+                    if (!addConstr(goal_ps, goal_Cs, try_lessthan - diff, -2, assump_lit))
                         break; // unsat
                     if (constrs.size() > 0) convertPbs(false);
                 }
             }
         }
       }         
-    } // END OF LOOP
+    } // END OF LOOP: while(1)
+      if (gbmo_remain_goal_ps.size() == 0 || !sat) break;
+
+      try_lessthan = best_goalvalue - fixed_goalval - harden_goalval - gbmo_goalval;
+      assump_lit = lit_Undef;
+      if (!addConstr(goal_ps, goal_Cs, try_lessthan, -1, assump_lit))
+          break; // unsat
+      if (constrs.size() > 0) convertPbs(false);
+      if (use_base_assump) {
+          for (int i = 0; i < base_assump.size(); i++) addUnitClause(base_assump[i]);
+          base_assump.clear();
+      }
+      harden_goalval += try_lessthan;
+      gbmo_remain_goal_ps.moveTo(goal_ps); gbmo_remain_goal_Cs.moveTo(goal_Cs);
+      if (gbmo_splitting_weights.size() > 0 &&
+              separate_gbmo_subgoal(gbmo_splitting_weights, goal_ps, goal_Cs, 
+                  gbmo_remain_goal_ps, gbmo_remain_goal_Cs, gbmo_remain_weight)) {
+          // the goal constraint was splitted again into two subgoals based on GBMO properties
+          gbmo_goalval = gbmo_remain_weight;
+      } else gbmo_remain_weight =  gbmo_goalval = 0;
+      if (opt_verbosity >= 1)
+          reportf("Processing the %s GBMO subgoal with %d literals (linear search)\n", (gbmo_remain_weight > 0 ? "next" : "last"), goal_ps.size());
+
+      try_lessthan = best_goalvalue;
+      Int diff = fixed_goalval + harden_goalval + gbmo_goalval;
+      if (gbmo_goalval > 0) 
+          gbmo_goalval = evalPsCs(gbmo_remain_goal_ps, gbmo_remain_goal_Cs, best_model, am1_rels);
+      assump_lit = (assump_ps.size() == 0 ? lit_Undef : 
+              mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
+      if (!addConstr(goal_ps, goal_Cs, try_lessthan - diff, -2, assump_lit))
+          break; // unsat
+      if (constrs.size() > 0) convertPbs(false);
+
+    } while (1);
 
     if (status == l_False && opt_output_top > 0) printf("v\n");
     if (goal_gcd != 1) {
@@ -1238,7 +1332,7 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
             Lit r = mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true);
             sat_solver.setFrozen(var(r), true);
             cls.push(~r); assump_ps.push(r); assump_Cs.push(min_Cs);
-            am1_rels.push(Pair_new(r,min_Cs));
+            am1_rels.push(AtMost1(r, min_Cs, cls));
             sat_solver.addClause(cls);
             if (ind.size() > 2) min_Cs = Int(ind.size() - 1) * min_Cs;
             am1_cnt++; am1_len_sum += am1.size();  LB_goalvalue += min_Cs; harden_goalval += min_Cs;

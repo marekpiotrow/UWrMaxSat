@@ -86,6 +86,12 @@ class IntLitQueue {
 #include <scip/scipdefplugins.h>
 #endif
 
+struct AtMost1 {
+    Lit lit; Int weight; Minisat::vec<Lit> clause;
+    AtMost1(Lit l, Int w, Minisat::vec<Lit>& cls) : lit(l), weight(w) { cls.copyTo(clause); }
+    AtMost1(const AtMost1& am1) : lit(am1.lit), weight(am1.weight) { am1.clause.copyTo(clause); }
+} ;
+
 class MsSolver final : public PbSolver {
   public:
     MsSolver(bool print_info = true, bool use_preprocessing = false)
@@ -108,7 +114,7 @@ class MsSolver final : public PbSolver {
     int                 top_for_strat, top_for_hard; // Top indices to soft_cls for stratification and hardening operations.
     int                 last_soft_added_to_sat; // An index tp soft_cls, above which soft clauses of length > 1 are added to sat solver.
     Map<Lit, Int>       harden_lits;    // The weights of literals included into "At most 1" clauses (MaxSAT preprocessing of soft clauese).
-    vec<Pair<Lit,Int> > am1_rels;       // The weights of relaxing vars in "At most 1" clauses
+    vec<AtMost1> am1_rels;              // The weights of relaxing vars in "At most 1" clauses
     // IPAMIR interface
     vec<Lit>            harden_assump;  // IPAMIR: harden soft literals are put here instead of creating unit clauses
     vec<Lit>            global_assumptions; // IPAMIR: sorted literals used in IPAMIR assumptions are in this vector
