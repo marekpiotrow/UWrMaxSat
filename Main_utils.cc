@@ -88,7 +88,7 @@ bool     opt_use_maxpre    = false;
 bool     opt_reuse_sorters = true;
 uint64_t opt_unsat_conflicts = 5000000;
 #ifdef MAXPRE
-char     opt_maxpre_str[80]= "[bu]#[buvsrgc]";
+char     opt_maxpre_str[80]= "[uvsrgc]";
 int      opt_maxpre_time   = 0;
 int      opt_maxpre_skip   = 0;
 maxPreprocessor::PreprocessorInterface *maxpre_ptr = NULL;
