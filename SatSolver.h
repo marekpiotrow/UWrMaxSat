@@ -25,8 +25,10 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "minisat/mtl/Vec.h"
 #ifdef CADICAL
 #include "CadicalWrap.h"
+namespace Minisat = COMinisatPS;
 #elif defined(CRYPTOMS)
 #include "CryptoMSWrap.h"
+namespace Minisat = COMinisatPS;
 #else
 #include "minisat/simp/SimpSolver.h"
 #endif
@@ -88,6 +90,12 @@ public:
 #elif defined(GLUCOSE4)
     ExtSimpSolver(bool print_info = true) { 
         if (print_info) printf("c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"); }
+#elif defined(CRYPTOMS)
+    ExtSimpSolver(bool print_info = true) { 
+        if (print_info) printf("c Using CryptoMiniSat (ver. 5.8.0) SAT solver by its Authors (2020)\n"); }
+#elif defined(MINISAT)
+    ExtSimpSolver(bool print_info = true) { 
+        if (print_info) printf("c Using MiniSat (ver. 2.2.0) SAT solver by Niklas Een and Niklas Sorensson (2010)\n"); }
 #endif
 #if !defined(CADICAL) && !defined(CRYPTOMS)
     const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;

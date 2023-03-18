@@ -408,7 +408,11 @@ Formula buildConstraint(const Linear& c, bool soft_constr, int max_cost)
             for (int i = 0; i < base.size(); i++) {
                 Lit prev_p = lit_Undef;
                 for (int j = 1; j < base[i]; j++) {
+#ifdef MINISAT
+                    Lit p = mkLit(pb_solver->sat_solver.newVar(l_Undef, !opt_branch_pbvars));
+#else
                     Lit p = mkLit(pb_solver->sat_solver.newVar(true /*l_Undef*/, !opt_branch_pbvars));
+#endif
                     pb_solver->sat_solver.setFrozen(var(p), true);
                     base_assump.push(lit2fml(p));
                     if (j > 1) pb_solver->sat_solver.addClause(~p,prev_p);

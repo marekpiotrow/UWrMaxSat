@@ -27,7 +27,7 @@ constexpr CMSat::lbool ll_False = CMSat::l_False;
 #include "mtl/Vec.h"
 #include "core/SolverTypes.h"
 
-namespace Minisat {
+namespace COMinisatPS {
 
 class SimpSolver {
 protected:
@@ -162,6 +162,7 @@ public:
 
     void toDimacs(const char *file) { solver->open_file_and_dump_irred_clauses(file); }
     void statistics() { solver->print_stats(); }
+    void setTermCallback(void * /*state*/, int (* /*terminate*/)(void *)) { /* this is complicated */ }
 };
 
 }
