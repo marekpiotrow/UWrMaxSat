@@ -966,6 +966,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             sat_solver.setFrozen(var(assump_lit),true);
             assump_ps.push(assump_lit); assump_Cs.push(opt_minimization == 2 ? try_lessthan : 
                                                        min_removed != Int_MAX && min_removed != 0 ? min_removed : 1);
+            for (int k = assump_ps.size() - 1; k > 0 && assump_ps[k] < assump_ps[k-1]; k--) // correct the order of assump_ps
+                std::swap(assump_ps[k], assump_ps[k-1]), std::swap(assump_Cs[k], assump_Cs[k-1]);
         }
         last_unsat_constraint_lit = lit_Undef;
         if (opt_minimization == 1) {
