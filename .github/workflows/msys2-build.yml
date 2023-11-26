@@ -24,7 +24,7 @@ jobs:
     - name: build COMiniSatPS
       run: |
         cd ..
-        wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
+        wget --no-check-certificate https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
         unzip COMiniSatPSChandrasekharDRUP.zip
         mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
         cd cominisatps
