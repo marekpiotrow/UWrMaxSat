@@ -40,8 +40,8 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tar zxvf scipoptsuite-8.0.3.tgz  
-        cd scipoptsuite-8.0.3  
+        tar zxvf scipoptsuite-8.0.4.tgz  
+        cd scipoptsuite-8.0.4  
         sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt  
         mkdir build && cd build  
         cmake -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  

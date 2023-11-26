@@ -67,7 +67,7 @@ lbool add_constr(SCIP *scip,
     for (int j = 0; j < ps.size(); j++)
     {
         auto lit = ps[j];
-        if (solver->value(lit) != l_Undef) continue;
+        if (solver->value(lit) == l_False) continue;
         if (set_scip_var(scip, solver, vars, lit)== l_False) return l_False;
         auto v = vars[var(lit)];
         MY_SCIP_CALL(SCIPaddCoefLinear(scip, cons, v, sign(lit) ? -1 : 1));
