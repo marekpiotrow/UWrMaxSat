@@ -263,8 +263,8 @@ void MsSolver::harden_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs
 {
     int cnt_unit = 0, cnt_assump = 0, sz = 0;
     Int Ibound = UB_goalvalue - LB_goalvalue, WMAX = Int(WEIGHT_MAX);
-    weight_t       wbound = (Ibound >= WMAX ? WEIGHT_MAX : tolong(Ibound));
-    weight_t ub_goalvalue = (UB_goalvalue >= WMAX ? WEIGHT_MAX : tolong(UB_goalvalue - fixed_goalval));
+    weight_t       wbound = (Ibound >= WMAX ? WEIGHT_MAX : toweight(Ibound));
+    weight_t ub_goalvalue = (UB_goalvalue >= WMAX ? WEIGHT_MAX : toweight(UB_goalvalue - fixed_goalval));
     for (int i = top_for_hard - 1; i >= 0 && soft_cls[i].fst > wbound; i--) { // hardening soft clauses with weights > the current goal interval length 
         if (soft_cls[i].fst > ub_goalvalue) sz++;
         Lit p = soft_cls[i].snd->last(); if (soft_cls[i].snd->size() > 1) p = ~p;
@@ -616,7 +616,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     if (ipamir_used) SCIP_found_opt.store(false);
     extern bool opt_use_scip_slvr;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
-    if (opt_use_scip_slvr && l_True == 
+    if (opt_use_scip_slvr && UB_goalval < Int(2L << std::numeric_limits<double>::digits) && l_True == 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls)) {
         if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
         return;

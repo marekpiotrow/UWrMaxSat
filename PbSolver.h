@@ -30,10 +30,12 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "StackAlloc.h"
 
 #ifdef BIG_WEIGHTS
-using weight_t = Int; 
+using weight_t = Int;
+#define toweight(x) (x)
 #define WEIGHT_MAX Int_MAX
 #else
 using weight_t = int64_t;
+#define toweight(x) tolong(x)
 static inline const char *toString(weight_t x) { static char buf[30]; sprintf(buf, "%" PRId64, x); return buf;  }
 #define WEIGHT_MAX std::numeric_limits<weight_t>::max()
 #endif

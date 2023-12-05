@@ -98,6 +98,7 @@ public:
     friend char* toString(Int num) { char buf[32]; sprintf(buf, "%lld", num.data); return xstrdup(buf); }   // Caller must free string.
     friend int   toint   (Int num) { if (num > INT_MAX || num < INT_MIN) throw Exception_IntOverflow(xstrdup("toint")); return (int)num.data; }
     friend long  tolong  (Int num) { if (num > LONG_MAX || num < LONG_MIN) throw Exception_IntOverflow(xstrdup("tolong")); return (long int)num.data; }
+    friend unsigned long  toulong (Int num) { if (num > ULONG_MAX || num < ULONG_MIN) throw Exception_IntOverflow(xstrdup("toulong")); return (unsigned long int)num.data; }
 };
 
 
@@ -292,6 +293,12 @@ public:
         if (num.small() || !mpz_fits_slong_p(*num.data))
             throw Exception_IntOverflow(xstrdup("tolong"));
         return (long int)mpz_get_si(*num.data);
+    }
+
+    friend unsigned long toulong (Int num) {
+        if (num.small() || !mpz_fits_ulong_p(*num.data))
+            throw Exception_IntOverflow(xstrdup("toulong"));
+        return (unsigned long int)mpz_get_ui(*num.data);
     }
 
     explicit operator double () {

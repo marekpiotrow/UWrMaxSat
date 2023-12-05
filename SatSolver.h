@@ -100,7 +100,7 @@ public:
 #if !defined(CADICAL) && !defined(CRYPTOMS)
     const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;
 #endif
-    void reduceProblem();
+    bool reduceProblem();
     void extendGivenModel(vec<lbool> &model);
     void printVarsCls(bool encoding = true, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls = NULL, int soft_cls_sz = 0);
     // compute a list of propagated literals for a given literal lit under some possible global assumptions

@@ -425,7 +425,7 @@ static bool parse_wcnfs(B& in, S& solver, bool wcnf_format, Int hard_bound)
         reportf("Using MaxPre - an MaxSAT preprocessor by Tuukka Korhonen (2017) with techniques: %s\n", 
                 opt_maxpre_str);
         if (++weight_sum < hard_bound) hard_bound = weight_sum;
-        uint64_t topWeight = tolong(hard_bound);
+        uint64_t topWeight = toulong(hard_bound);
         for (auto &w : weights) 
             if (w == 0 || w > topWeight) w = topWeight;
         maxpre_ptr = new maxPreprocessor::PreprocessorInterface(clauses, weights, topWeight);

@@ -157,6 +157,24 @@ void outputResult(const PbSolver& S, bool optimum)
 #endif
     if (!opt_satlive || resultsPrinted) return;
 
+    if (opt_output_top < 0) {
+        if (optimum){
+            if (S.best_goalvalue == Int_MAX) printf("s UNSATISFIABLE\n");
+            else {
+                if (!opt_satisfiable_out) {
+                    char* tmp = toString(S.best_goalvalue);
+                    printf("o %s\n", tmp);
+                    xfree(tmp);
+                }
+                printf("s OPTIMUM FOUND\n");
+            }
+        }else{
+            if (S.best_goalvalue == Int_MAX) printf("s UNKNOWN\n");
+            else                             printf("%c SATISFIABLE\n", (opt_satisfiable_out ? 's' : 'c'));
+        }
+        resultsPrinted = true;
+    } else if (opt_output_top == 1) resultsPrinted = true;
+
     if (opt_model_out && S.best_goalvalue != Int_MAX){
 #ifdef MAXPRE
         if (opt_use_maxpre) {
@@ -204,23 +222,6 @@ void outputResult(const PbSolver& S, bool optimum)
         }
         printf("\n");
     }
-    if (opt_output_top < 0) {
-        if (optimum){
-            if (S.best_goalvalue == Int_MAX) printf("s UNSATISFIABLE\n");
-            else {
-                if (!opt_satisfiable_out) {
-                    char* tmp = toString(S.best_goalvalue);
-                    printf("o %s\n", tmp);
-                    xfree(tmp);
-                }
-                printf("s OPTIMUM FOUND\n");
-            }
-        }else{
-            if (S.best_goalvalue == Int_MAX) printf("s UNKNOWN\n");
-            else                             printf("%c SATISFIABLE\n", (opt_satisfiable_out ? 's' : 'c'));
-        }
-        resultsPrinted = true;
-    } else if (opt_output_top == 1) resultsPrinted = true;
     fflush(stdout);
 }
 

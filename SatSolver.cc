@@ -41,12 +41,14 @@ const Minisat::Clause& ExtSimpSolver::getClause  (int i, bool &is_satisfied) con
 }
 #endif
 
-void ExtSimpSolver::reduceProblem()
+bool ExtSimpSolver::reduceProblem()
 {
+    bool res = true;
 #if !defined(CADICAL) && !defined(CRYPTOMS)
-    if (use_simplification) eliminate();
+    if (use_simplification) res = eliminate();
     elimclauses.copyTo(elimClauses);
 #endif
+    return res;
 }
 
 #if !defined(CADICAL) && !defined(CRYPTOMS)

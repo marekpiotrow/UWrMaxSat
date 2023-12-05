@@ -102,7 +102,7 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
         // MY_SCIP_CALL(SCIPprintSol(scip, sol, nullptr, FALSE));
         solver->best_goalvalue = obj_offset + long(round(SCIPgetSolOrigObj(scip, sol)));
         if (!solver->ipamir_used || opt_verbosity > 0) 
-            reportf("SCIP optimum: %ld\n", tolong(solver->best_goalvalue));
+            reportf("SCIP optimum (rounded): %ld\n", tolong(solver->best_goalvalue));
         for (Var x = 0; x < (int)vars.size(); x++)
         {
             if (vars[x] != nullptr) {
@@ -138,6 +138,8 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
             solver->sat_solver.extendGivenModel(opt_model);
             solver->best_model.clear();
             for (int x = 0; x < solver->pb_n_vars; x++) solver->best_model.push(opt_model[x] != l_False);
+            Minisat::vec<Lit> soft_unsat; // Not used in this context
+            solver->best_goalvalue = (solver->fixed_goalval + evalGoal(solver->soft_cls, solver->best_model, soft_unsat)) * solver->goal_gcd;
 
             if (opt_verbosity >= 1) {
                 SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip);
@@ -189,9 +191,10 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
                                   int sat_orig_vars,
                                   int sat_orig_cls)
 {
-    sat_solver.reduceProblem(); sat_orig_cls = sat_solver.nClauses();
+    bool res = sat_solver.reduceProblem(); sat_orig_cls = sat_solver.nClauses();
 
-    if (sat_solver.nFreeVars() >= 100000 || sat_orig_cls >= 150000 || soft_cls.size() >=  100000) return l_Undef;
+    if (!res || sat_solver.nFreeVars() >= 100000 || sat_orig_cls >= 150000 || soft_cls.size() >=  100000) 
+        return l_Undef;
 
     extern double opt_scip_cpu;
     extern bool opt_scip_parallel;

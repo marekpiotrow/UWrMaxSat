@@ -32,9 +32,9 @@ static weight_t gcd(weight_t n, weight_t m)
     return n;
 }
 
-static char isSeparating(const vec<weight_t>& cs, int idx, weight_t bound) {
+static char isSeparating(const vec<weight_t>& cs, int idx, Int bound) {
   int i, in_size = cs.size(), max_operations = 100000000;
-  vec<weight_t> weight_sums, shifted_weight_sums; 
+  vec<Int> weight_sums, shifted_weight_sums; 
   weight_sums.push(0);
 
   for (i = idx; i < in_size && max_operations > 0; i++) {
@@ -46,13 +46,13 @@ static char isSeparating(const vec<weight_t>& cs, int idx, weight_t bound) {
       shifted_weight_sums[j] += cs[i];
 
     // merge both lists removing duplicates to get new weight_sums
-    vec<weight_t> new_weight_sums;
+    vec<Int> new_weight_sums;
     int k, l, n, m;
     n = weight_sums.size();
     m = shifted_weight_sums.size();
 
     new_weight_sums.push(0);
-    weight_t last = 0, curr;
+    Int last = 0, curr;
     for (k = 1, l = 0; k < n && l < m; ) {
       if (weight_sums[k] <= shifted_weight_sums[l]) {
         if (weight_sums[k] == shifted_weight_sums[l]) l++; // remove a duplicate
@@ -82,12 +82,12 @@ void separationIndex(const vec<weight_t>& cs, vec<int>& separation_points) {
 
   if (cs.size() <= 2) return;
 
-  vec<weight_t> lw;
+  vec<Int> lw;
   separation_points.clear();
 
   // calculate prefix sums of weights
   lw.push(cs[0]);
-  for(int i=1; i<cs.size(); i++) { lw.push(cs[i] + lw[i-1]); }
+  for(int i=1; i<cs.size(); i++) { lw.push(Int(cs[i]) + lw[i-1]); }
 
   weight_t rdiff = WEIGHT_MAX, rgcd = cs[cs.size()-1];
 
