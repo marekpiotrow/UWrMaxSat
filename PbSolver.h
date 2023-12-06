@@ -39,6 +39,7 @@ using weight_t = int64_t;
 static inline const char *toString(weight_t x) { static char buf[30]; sprintf(buf, "%" PRId64, x); return buf;  }
 #define WEIGHT_MAX std::numeric_limits<weight_t>::max()
 #endif
+#define WEIGHTSUM_MAX Int_MAX
 
 void clear_shared_formulas(void);
 

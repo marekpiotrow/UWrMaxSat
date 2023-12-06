@@ -389,7 +389,8 @@ static bool parse_wcnfs(B& in, S& solver, bool wcnf_format, Int hard_bound)
         else if (weight >= hard_bound) {
             if (!solver.addClause(ps)) return false;
         } else {
-            if (ps.size() == 1) {
+            if (ps.size() == 0) { solver.fixed_goalval += weight; continue; }
+            else if (ps.size() == 1) {
                 if (!opt_maxsat_msu) gps.push(~ps.last()), gCs.push(weight);
             } else {
                 ps.push(lit_Undef);
@@ -515,7 +516,7 @@ void parse_PB_file(cchar* filename, PbSolver& solver, bool old_format, bool abor
 template<class B, class S>
 static bool parse_WCNF(B& in, S& solver, bool abort_on_error)
 {
-    Int hard_bound = Int(WEIGHT_MAX);
+    Int hard_bound = Int(WEIGHTSUM_MAX);
     bool wcnf_format = true;
 
     try{

@@ -398,8 +398,11 @@ static bool separate_gbmo_subgoal(vec<Int>& splitting_weights, vec<Lit>& goal_ps
 
 void MsSolver::maxsat_solve(solve_Command cmd)
 {
-    if (!okay()) {
+    if (!okay() || nVars() == 0) {
         if (opt_verbosity >= 1) sat_solver.printVarsCls();
+        if (okay())  {
+            extern bool opt_satisfiable_out;
+            best_goalvalue = fixed_goalval; opt_satisfiable_out = false; }
         return;
     }
 
