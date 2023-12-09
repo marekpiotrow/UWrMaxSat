@@ -33,7 +33,7 @@ static weight_t gcd(weight_t n, weight_t m)
 }
 
 static char isSeparating(const vec<weight_t>& cs, int idx, Int bound) {
-  int i, in_size = cs.size(), max_operations = 100000000;
+  int i, in_size = cs.size(), max_operations = 100000000, max_vec_size = 10000000;
   vec<Int> weight_sums, shifted_weight_sums; 
   weight_sums.push(0);
 
@@ -50,6 +50,7 @@ static char isSeparating(const vec<weight_t>& cs, int idx, Int bound) {
     int k, l, n, m;
     n = weight_sums.size();
     m = shifted_weight_sums.size();
+    if (n + m > max_vec_size) return 'M'; // vectors are too big
 
     new_weight_sums.push(0);
     Int last = 0, curr;
@@ -64,9 +65,8 @@ static char isSeparating(const vec<weight_t>& cs, int idx, Int bound) {
     if ((k < n && weight_sums[k] - last < bound) || (l < m && shifted_weight_sums[l] - last < bound))
         return 'N';
     while (k < n) new_weight_sums.push(weight_sums[k++]);
-    while (l < m) new_weight_sums.push(shifted_weight_sums[l++]);
-
     new_weight_sums.moveTo(weight_sums);
+    while (l < m) weight_sums.push(shifted_weight_sums[l++]);
 
     // subtract estimated number of operations performed in a loop
     max_operations -= n;
@@ -98,8 +98,8 @@ void separationIndex(const vec<weight_t>& cs, vec<int>& separation_points) {
       bool final_split = lw[i-1] <= rgcd;
       bool potential_split = lw[i-1] <= cs[i] && lw[i-1] <= rdiff;
       char res = 'N';
-      if (final_split || potential_split && isSeparating(cs, i, lw[i-1]) == 'S') 
+      if (final_split || potential_split && (res = isSeparating(cs, i, lw[i-1])) == 'S') 
           separation_points.push(i);
-      if (res == 'T') break;
+      if (res == 'T' || res == 'M') break;
   }
 }
