@@ -32,9 +32,10 @@ static weight_t gcd(weight_t n, weight_t m)
     return n;
 }
 
-static char isSeparating(const vec<weight_t>& cs, int idx, Int bound) {
+template <typename weight_sum_t>
+static char isSeparating(const vec<weight_t>& cs, int idx, weight_sum_t bound) {
   int i, in_size = cs.size(), max_operations = 100000000, max_vec_size = 10000000;
-  vec<Int> weight_sums, shifted_weight_sums; 
+  vec<weight_sum_t> weight_sums, shifted_weight_sums; 
   weight_sums.push(0);
 
   for (i = idx; i < in_size && max_operations > 0; i++) {
@@ -46,25 +47,26 @@ static char isSeparating(const vec<weight_t>& cs, int idx, Int bound) {
       shifted_weight_sums[j] += cs[i];
 
     // merge both lists removing duplicates to get new weight_sums
-    vec<Int> new_weight_sums;
+    vec<weight_sum_t> new_weight_sums;
     int k, l, n, m;
     n = weight_sums.size();
     m = shifted_weight_sums.size();
     if (n + m > max_vec_size) return 'M'; // vectors are too big
 
     new_weight_sums.push(0);
-    Int last = 0, curr;
+    weight_sum_t last = 0;
     for (k = 1, l = 0; k < n && l < m; ) {
       if (weight_sums[k] <= shifted_weight_sums[l]) {
         if (weight_sums[k] == shifted_weight_sums[l]) l++; // remove a duplicate
-        new_weight_sums.push(curr = weight_sums[k++]);
+        new_weight_sums.push(std::move(weight_sums[k++]));
       } else
-        new_weight_sums.push(curr = shifted_weight_sums[l++]);
-      if (curr - last < bound) return 'N'; else last = curr; // check separation condition
+        new_weight_sums.push(shifted_weight_sums[l++]);
+      if (new_weight_sums.last() - last < bound) return 'N'; // check separation condition
+      else last = new_weight_sums.last(); 
     }
     if ((k < n && weight_sums[k] - last < bound) || (l < m && shifted_weight_sums[l] - last < bound))
         return 'N';
-    while (k < n) new_weight_sums.push(weight_sums[k++]);
+    while (k < n) new_weight_sums.push(std::move(weight_sums[k++]));
     new_weight_sums.moveTo(weight_sums);
     while (l < m) weight_sums.push(shifted_weight_sums[l++]);
 
@@ -98,8 +100,15 @@ void separationIndex(const vec<weight_t>& cs, vec<int>& separation_points) {
       bool final_split = lw[i-1] <= rgcd;
       bool potential_split = lw[i-1] <= cs[i] && lw[i-1] <= rdiff;
       char res = 'N';
-      if (final_split || potential_split && (res = isSeparating(cs, i, lw[i-1])) == 'S') 
+#ifdef BIG_WEIGHTS
+      if (final_split || potential_split && (res = isSeparating<Int>(cs, i, lw[i-1])) == 'S')
           separation_points.push(i);
+#else
+      if (final_split || potential_split && (res =
+          (lw.last() > Int(std::numeric_limits<uint64_t>::max()) ? isSeparating<Int>(cs, i, lw[i-1]) :
+                                                isSeparating<uint64_t>(cs, i, toulong(lw[i-1])))) == 'S')
+          separation_points.push(i);
+#endif
       if (res == 'T' || res == 'M') break;
   }
 }

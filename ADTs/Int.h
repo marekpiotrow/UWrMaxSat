@@ -153,6 +153,11 @@ public:
         mpz_init_set_si(*data, x);
     }
 
+    explicit Int(uint64_t x) {
+        data = xmalloc<mpz_t>(1); assert(((intp)data & 1) == 0);
+        mpz_init_set_ui(*data, x);
+    }
+
     Int(const Int& src) {
         if (src.small())
             data = src.data;
