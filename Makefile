@@ -173,7 +173,7 @@ $(BUILD_DIR)/dynamic/lib/$(MINISATP_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE)\
  $(BUILD_DIR)/dynamic/lib/$(MINISATP_DLIB):
 	$(ECHO) echo Linking Shared Library: $@
 	$(VERB) mkdir -p $(dir $@)
-	$(VERB) $(CXX) $(MINISATP_LDFLAGS) -o $@ -shared -Wl,-soname,$(MINISATP_DLIB).$(SOMAJOR) $^
+	$(VERB) $(CXX) -o $@ -shared -Wl,-soname,$(MINISATP_DLIB).$(SOMAJOR) $^ $(MINISATP_LDFLAGS) 
 	$(VERB) ln -sf $(MINISATP_DLIB).$(SOMAJOR).$(SOMINOR)$(SORELEASE) $(BUILD_DIR)/dynamic/lib/$(MINISATP_DLIB).$(SOMAJOR)
 	$(VERB) ln -sf $(MINISATP_DLIB).$(SOMAJOR) $(BUILD_DIR)/dynamic/lib/$(MINISATP_DLIB)
 
