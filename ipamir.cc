@@ -147,7 +147,7 @@ IPAMIR_API void ipamir_add_hard (void * solver, int32_t lit_or_zero)
     if (lit_or_zero == 0) {
         s->nomodel = true;
         s->solver->addClause(s->clause);
-        if (!s->solver->okay()) reportf("\n***** SAT solver state is not OK *****\n");
+        if (opt_verbosity > 0 && !s->solver->okay()) reportf("\n***** Hard clause just added makes the instance unsatisfiable *****\n");
         s->clause.clear();
     } else {
         ensure_var_created(*s, lit_or_zero);

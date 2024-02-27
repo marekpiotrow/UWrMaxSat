@@ -105,6 +105,11 @@ class MsSolver final : public PbSolver {
         , termCallbackState(nullptr)
         , termCallback(nullptr) {}
 
+    ~MsSolver() {
+        for (int i = 0; i < orig_soft_cls.size(); i++) delete orig_soft_cls[i].snd;
+        for (int i = 0; i < soft_cls.size(); i++) delete soft_cls[i].snd;
+    }
+
     bool                ipamir_used;
     Int                 harden_goalval,  //  Harden goalval used in the MaxSAT preprocessing 
                         fixed_goalval;   // The sum of weights of soft clauses that must be false

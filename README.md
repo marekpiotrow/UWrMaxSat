@@ -40,8 +40,8 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tar zxvf scipoptsuite-8.0.4.tgz  
-        cd scipoptsuite-8.0.4  
+        tar zxvf scipoptsuite-8.1.0.tgz  
+        cd scipoptsuite-8.1.0  
         sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt  
         mkdir build && cd build  
         cmake -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  
@@ -67,6 +67,14 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
      containing BIGWEIGHTS before running the last command
 
    - The program can be compiled with mingw64 g++ compiler in MSYS2 environment (https://www.msys2.org).
+
+   - To build a dynamic library you have to compile the static libraries above with the compiler option -fPIC  
+     and, in the last step, replace 'make r' with 'make lsh'. The compiler option can be added to the steps above  
+     as follows:  
+       (2) The SAT solver library should be made with the command: CFLAGS=-fPIC MROOT=.. make libr  
+       (3) The MaxPre Makefile should be modified with: sed -i 's/-g/-fPIC -D NDEBUG/' src/Makefile  
+       (4) At the beginning of scipoptsuite-8.1.0/scip/src/CMakeLists.txt the following line should be added:    
+           set(SCIP_COMP_OPTIONS ${SCIP_COMP_OPTIONS} -fPIC)
 
 ### Other SAT solvers
 
