@@ -639,7 +639,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     if (ipamir_used) SCIP_found_opt.store(false);
     extern bool opt_use_scip_slvr;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
-    if (opt_use_scip_slvr && UB_goalval < Int(2L << std::numeric_limits<double>::digits) && l_True == 
+    if (opt_use_scip_slvr && UB_goalval < Int(uint64_t(2) << std::numeric_limits<double>::digits) && l_True == 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls)) {
         if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
         return;

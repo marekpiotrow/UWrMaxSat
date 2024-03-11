@@ -150,12 +150,29 @@ public:
 
     Int(int64_t x) {
         data = xmalloc<mpz_t>(1); assert(((intp)data & 1) == 0);
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MINGW64__)
+	bool neg = false, int64_min = false;
+	if (x < 0) {
+	    if (x == INT64_MIN) int64_min = true, x++;
+	    x = -x, neg = true;
+	}
+	mpz_init(*data);
+        mpz_import(*data, 1, 1, sizeof(x), 0, 0, &x);
+	if (neg) mpz_neg(*data, *data);
+	if (int64_min) mpz_sub_ui(*data, *data, 1);
+#else
         mpz_init_set_si(*data, x);
+#endif
     }
 
     explicit Int(uint64_t x) {
         data = xmalloc<mpz_t>(1); assert(((intp)data & 1) == 0);
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MINGW64__)
+	mpz_init(*data);
+	mpz_import(*data, 1, 1, sizeof(x), 0, 0, &x);
+#else
         mpz_init_set_ui(*data, x);
+#endif
     }
 
     Int(const Int& src) {
@@ -294,16 +311,38 @@ public:
         return (int)mpz_get_si(*num.data);
     }
 
-    friend long tolong (Int num) {
-        if (num.small() || !mpz_fits_slong_p(*num.data))
-            throw Exception_IntOverflow(xstrdup("tolong"));
-        return (long int)mpz_get_si(*num.data);
+    friend int64_t tolong (Int num) {
+        if (num.small()) throw Exception_IntOverflow(xstrdup("tolong"));
+	int64_t res;
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MINGW64__)
+	size_t cnt = 0;
+	bool neg = mpz_sgn(*num.data) < 0;
+	uint64_t ures[20];
+	mpz_export(ures, &cnt, 1, sizeof(uint64_t), 0, 0, *num.data);
+	if (cnt > 1 || neg && ures[0] > 1ULL - (INT64_MIN + 1) || !neg && ures[0] > (uint64_t)INT64_MAX)
+		throw Exception_IntOverflow(xstrdup("toulong"));
+	res = (cnt == 0 ? 0 :(neg ? -(int64_t)ures[0] : (int64_t)ures[0]));
+#else
+        if (!mpz_fits_slong_p(*num.data)) throw Exception_IntOverflow(xstrdup("tolong"));
+        res = mpz_get_si(*num.data);
+#endif
+	return res;
     }
 
-    friend unsigned long toulong (Int num) {
-        if (num.small() || !mpz_fits_ulong_p(*num.data))
-            throw Exception_IntOverflow(xstrdup("toulong"));
-        return (unsigned long int)mpz_get_ui(*num.data);
+    friend uint64_t toulong (Int num) {
+        if (num.small()) throw Exception_IntOverflow(xstrdup("toulong"));
+	uint64_t res;
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MINGW64__)
+	size_t cnt = 0;
+	uint64_t ures[20];
+	mpz_export(ures, &cnt, 1, sizeof(uint64_t), 0, 0, *num.data);
+	if (mpz_sgn(*num.data) < 0 || cnt > 1) throw Exception_IntOverflow(xstrdup("toulong"));
+	res = (cnt == 0 ? 0 : ures[0]);
+#else
+        if (!mpz_fits_ulong_p(*num.data)) throw Exception_IntOverflow(xstrdup("toulong"));
+        res = mpz_get_ui(*num.data);
+#endif
+	return res;
     }
 
     explicit operator double () {

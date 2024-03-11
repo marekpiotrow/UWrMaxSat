@@ -21,7 +21,11 @@ MINISATP_RELSYM ?=
 ifeq ($(shell uname -s),Darwin)
 LDFLAG_STATIC =
 else
-LDFLAG_STATIC = --static
+    ifeq ($(OS),Windows_NT)
+	LDFLAGS_STATIC=
+    else
+        LDFLAG_STATIC = --static
+    endif
 endif
 
 # Sets of compile flags for different build types
@@ -66,8 +70,8 @@ config:
            echo 'MCL_LIB?='                           ; \
            echo 'endif'                               ; \
            echo 'ifneq ($$(USESCIP),)'                  ; \
-	   echo 'MCL_INCLUDE+=-I../scipoptsuite-8.0.0/scip/src -I../scipoptsuite-8.0.0/build/scip' ; \
-	   echo 'MCL_LIB+=-L../scipoptsuite-8.0.0/build/lib -lscip -lsoplex-pic'                 ; \
+	   echo 'MCL_INCLUDE+=-I../scipoptsuite-8.1.0/scip/src -I../scipoptsuite-8.1.0/build/scip' ; \
+	   echo 'MCL_LIB+=-L../scipoptsuite-8.1.0/build/lib -lscip -lsoplex-pic'                 ; \
            echo 'endif'                                ; \
 	   echo 'prefix?=$(prefix)'                   ) > config.mk
 

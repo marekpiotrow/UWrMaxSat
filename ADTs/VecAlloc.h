@@ -38,7 +38,7 @@ public:
    ~VecAlloc(void) {
       #ifdef DEBUG
         //if (nallocs != 0) fprintf(stderr, "WARNING! VecAlloc detected leak of %d unit(s) of type '%s'.\n", nallocs, typeid(T).name());
-        if (nallocs != 0) fprintf(stderr, "WARNING! VecAlloc detected leak of %d unit(s) of size %lu.\n", nallocs, sizeof(T));
+        if (nallocs != 0) fprintf(stderr, "WARNING! VecAlloc detected leak of %d unit(s) of size %zu.\n", nallocs, sizeof(T));
       #endif
         Slot*   curr,* next;
         curr = table;
