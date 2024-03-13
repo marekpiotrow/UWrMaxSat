@@ -348,7 +348,7 @@ Formula buildConstraint(const Linear& c, bool soft_constr, int max_cost)
     static bool negate = true;
     int sizesDiff = last_Cs.size() - c.size;
     bool lastBaseOK = sizesDiff >= 0;    
-    Int sum = 0, oldlo = last_lo, oldhi = last_hi;
+    Int sum = 0;
 
     for (int i = 0; i < c.size; i++) sum += c(i);
         
