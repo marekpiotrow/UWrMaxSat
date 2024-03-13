@@ -17,7 +17,7 @@ jobs:
 
     - uses: msys2/setup-msys2@v2
       with:
-        msystem: MINGW64
+        msystem: UCRT64
         update: true
         install: git make patch unzip mingw-w64-x86_64-toolchain mingw-w64-x86_64-zlib mingw-w64-x86_64-gmp
     - uses: actions/checkout@v4
