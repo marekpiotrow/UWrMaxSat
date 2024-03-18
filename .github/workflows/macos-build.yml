@@ -18,6 +18,7 @@ jobs:
         cd ..
         git clone https://github.com/marekpiotrow/cominisatps
         cd cominisatps
+        rm core simp mtl utils
         ln -s minisat/core minisat/simp minisat/mtl minisat/utils .
         make lr
     - name: build the MaxPre preprocessor
