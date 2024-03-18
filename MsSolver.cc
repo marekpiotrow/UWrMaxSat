@@ -413,24 +413,25 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     pb_n_vars = nVars();
     pb_n_constrs = nClauses();
     if (soft_cls.size() == 0) {
-        if (ipamir_used) {
-            Minisat::vec<Lit> assump_ps;
-            Lit assump_lit = lit_Undef;
-            if (global_assumptions.size() == 0) {
-                assump_lit = mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true);
-                assump_ps.push(assump_lit);
-            }
-            lbool status = satSolveLimited(assump_ps);
-            best_goalvalue = (status == l_True ? 0 : INT_MAX);
-            if (status == l_True) {
-                best_model.clear();
-                for (Var x = 0; x < pb_n_vars; x++)
-                    assert(sat_solver.modelValue(x) != l_Undef),
-                        best_model.push(sat_solver.modelValue(x) == l_True);
-            }
-            if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
-                asynch_interrupt = true;
-        } else { opt_maxsat_msu = false; solve(cmd); }
+        extern bool opt_satisfiable_out;
+        Minisat::vec<Lit> assump_ps;
+        Lit assump_lit = lit_Undef;
+        if (global_assumptions.size() == 0) {
+            assump_lit = mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true);
+            assump_ps.push(assump_lit);
+        }
+        if (opt_verbosity >= 1) sat_solver.printVarsCls();
+        lbool status = satSolveLimited(assump_ps);
+        best_goalvalue = (status == l_True ? fixed_goalval : INT_MAX);
+        if (status == l_True) {
+            best_model.clear();
+            for (Var x = 0; x < pb_n_vars; x++)
+                assert(sat_solver.modelValue(x) != l_Undef),
+                    best_model.push(sat_solver.modelValue(x) == l_True);
+        }
+        if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
+            asynch_interrupt = true;
+        if (!ipamir_used) opt_satisfiable_out = false;
         return;
     }
     // Convert constraints:

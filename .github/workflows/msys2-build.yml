@@ -24,21 +24,10 @@ jobs:
     - name: build COMiniSatPS
       run: |
         cd ..
-        wget --no-check-certificate https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip
-        unzip COMiniSatPSChandrasekharDRUP.zip
-        mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .
+        git clone https://github.com/marekpiotrow/cominisatps
         cd cominisatps
-        patch -p1 <../UWrMaxSat/cominisatps.patch
-    - name: make SAT solver library
-      run: |
-        cd ../cominisatps/simp
-        MROOT=.. make libr
-    - name: create SAT solver links
-      run: |
-        cd ../cominisatps
-        mkdir minisat
-        cd minisat
-        ln -s ../core ../simp ../mtl ../utils .
+        make lr
+        ln -s minisat/core minisat/simp minisat/mtl minisat/utils .
     - name: build the MaxPre preprocessor
       run: |
         cd ..

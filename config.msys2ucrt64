@@ -7,8 +7,8 @@ MINISATP_REL?=-std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D COMINISATPS $(MAX
 MINISATP_DEB?=-std=c++11 -O0 -D DEBUG  -Wno-strict-aliasing -D COMINISATPS $(MAXPRE) $(USESCIP) $(BIGWEIGHTS)
 MINISATP_PRF?=-std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D COMINISATPS $(MAXPRE) $(USESCIP) $(BIGWEIGHTS)
 MINISATP_FPIC?=-fpic
-MINISAT_INCLUDE?=-I/include -I/ucrt64/include -I/include/minisat -I../cominisatps
-MINISAT_LIB?=-L/lib -L/ucrt64/lib -L../cominisatps/simp -l_release $(USESCIP)
+MINISAT_INCLUDE?=-I/include -I/ucrt64/include -I/include/cominisatps -I../cominisatps
+MINISAT_LIB?=-L/lib -L/ucrt64/lib -L../cominisatps/build/release/lib -lcominisatps $(USESCIP)
 ifneq ($(MAXPRE),)
 MCL_INCLUDE?=-I../maxpre/src 
 MCL_LIB?=-L../maxpre/src/lib -lmaxpre 

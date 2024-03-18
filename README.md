@@ -10,23 +10,16 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
 ### Quick Install
 
 1. clone the repository into uwrmaxsat:  
-    git clone https://github.com/marekpiotrow/UWrMaxSat uwrmaxsat
+    git clone https://github.com/marekpiotrow/UWrMaxSat uwrmaxsat  
 
-2. build the SAT solver:
-
-    * 2.1 get COMiniSatPSChandrasekharDRUP.zip:  
-        wget https://baldur.iti.kit.edu/sat-competition-2016/solvers/main/COMiniSatPSChandrasekharDRUP.zip  
-    * 2.2 unzip and move:  
-        unzip COMiniSatPSChandrasekharDRUP.zip  
-        mv 'COMiniSatPS Chandrasekhar DRUP/cominisatps' .  
-    * 2.3 apply uwrmaxsat/cominisatps.patch:  
+2. build the SAT solver:  
+    * 2.1 get COMiniSatPS by cloning its repository (with modifications used in UWrMaxSat):  
+        git clone https://github.com/marekpiotrow/cominisatps  
+    * 2.2 compile the SAT solver library:  
         cd cominisatps  
-        patch -p1 <../uwrmaxsat/cominisatps.patch  
-    * 2.4 compile the SAT solver library:  
-        cd simp  
-        MROOT=.. make libr  
+        make lr  
+        ln -s minisat/core minisat/simp minisat/mtl minisat/utils .  
         cd ..  
-        mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..
 
 3. build the MaxPre preprocessor (if you want to use it - see Comments below):  
     * 3.1 clone the MaxPre repository:  
