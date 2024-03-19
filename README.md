@@ -17,8 +17,8 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
         git clone https://github.com/marekpiotrow/cominisatps  
     * 2.2 compile the SAT solver library:  
         cd cominisatps  
+        rm core simp mtl utils && ln -s minisat/core minisat/simp minisat/mtl minisat/utils .  
         make lr  
-        ln -s minisat/core minisat/simp minisat/mtl minisat/utils .  
         cd ..  
 
 3. build the MaxPre preprocessor (if you want to use it - see Comments below):  
@@ -35,10 +35,9 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
     * 4.2 untar and build a static library it:  
         tar zxvf scipoptsuite-8.1.0.tgz  
         cd scipoptsuite-8.1.0  
-        sed -i "s/add_library(libscip/add_library(libscip STATIC/g" scip/src/CMakeLists.txt  
         mkdir build && cd build  
-        cmake -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  
-        make libscip  
+        cmake -DSHARED=off -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  
+        cmake --build . --config Release --target libscip libsoplex-pic  
         cd ../..  
 
 5. build the UWrMaxSat solver (release version, statically linked):  
@@ -64,10 +63,10 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
    - To build a dynamic library you have to compile the static libraries above with the compiler option -fPIC  
      and, in the last step, replace 'make r' with 'make lsh'. The compiler option can be added to the steps above  
      as follows:  
-       (2) The SAT solver library should be made with the command: CFLAGS=-fPIC MROOT=.. make libr  
+       (2) The SAT solver library should be made with the command: CXXFLAGS=-fPIC make lr  
        (3) The MaxPre Makefile should be modified with: sed -i 's/-g/-fPIC -D NDEBUG/' src/Makefile  
-       (4) At the beginning of scipoptsuite-8.1.0/scip/src/CMakeLists.txt the following line should be added:    
-           set(SCIP_COMP_OPTIONS ${SCIP_COMP_OPTIONS} -fPIC)
+       (4) Add the following option to the first line starting with cmake:    
+           -DSCIP_COMP_OPTIONS=-fPIC  
 
 ### Other SAT solvers
 
