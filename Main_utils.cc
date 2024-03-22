@@ -193,7 +193,8 @@ void outputResult(const PbSolver& S, bool optimum)
                     }
                     if (j < 0) sum += pb_solver->orig_soft_cls[i].fst;
                 }
-                if (sum < S.best_goalvalue) printf("o %s\n", toString(sum));
+                char *tmp = nullptr;
+                if (sum < S.best_goalvalue) printf("o %s\n", tmp=toString(sum)), xfree(tmp);
             }
             if (opt_bin_model_out) {
                 printf("v ");

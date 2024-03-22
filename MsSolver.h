@@ -108,6 +108,7 @@ class MsSolver final : public PbSolver {
     ~MsSolver() {
         for (int i = 0; i < orig_soft_cls.size(); i++) delete orig_soft_cls[i].snd;
         for (int i = 0; i < soft_cls.size(); i++) delete soft_cls[i].snd;
+        mem.freeAll();
     }
 
     bool                ipamir_used;

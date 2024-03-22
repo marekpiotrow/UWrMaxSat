@@ -146,7 +146,7 @@ public:
                         sat_solver.eliminate(true); 
                 }
     void reset() {
-        trail.clear(); mem.freeAll(); constrs.clear();
+        trail.clear(); mem.clear(); constrs.clear();
         LB_goalvalue = Int_MIN; UB_goalvalue = Int_MAX;
         propQ_head = 0; statsPrinted = false;
         best_goalvalue = Int_MAX;

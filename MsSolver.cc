@@ -224,7 +224,8 @@ static weight_t do_stratification(MsSolver& S, vec<weight_t>& sorted_assump_Cs, 
     weight_t  max_assump_Cs = 0;
     while (sorted_assump_Cs.size() > 0 && sorted_assump_Cs.last() > lower_bound) {
         max_assump_Cs = sorted_assump_Cs.last(); sorted_assump_Cs.pop();
-        if (sorted_assump_Cs.size() > 0 && sorted_assump_Cs.last() == max_assump_Cs - 1) 
+        weight_t bound = max(lower_bound, max_assump_Cs - max(weight_t(1),max_assump_Cs/10));
+        while (sorted_assump_Cs.size() > 0 && sorted_assump_Cs.last() >= bound) 
             max_assump_Cs = sorted_assump_Cs.last(), sorted_assump_Cs.pop(); 
         int start = top_for_strat - 1, in_global_assumps = 0;
         for ( ; start >= 0 && soft_cls[start].fst >= max_assump_Cs; start--) {
@@ -1340,8 +1341,11 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
                     ind.push(l);
                     if (assump_Cs[l] < min_Cs) min_Cs = assump_Cs[l];
                 }
-                else if (!ipamir_used) 
-                    reportf("am1: %d %d %d %d %s\n", i, am1.size(), toInt(am1[0]), toInt(am1[i]), (l>=0 && l <assump_Cs.size()?toString(assump_Cs[l]):"???"));
+                else if (!ipamir_used) {
+                    char *tmp = nullptr;
+                    reportf("am1: %d %d %d %d %s\n", i, am1.size(), toInt(am1[0]), toInt(am1[i]), (l>=0 && l <assump_Cs.size() ? (tmp = toString(assump_Cs[l])) : "???"));
+                    xfree(tmp);
+                }
             if (ind.size() < 2) continue;
             for (int i = 0; i < ind.size(); i++) {
                 cls.push(assump_ps[ind[i]]);

@@ -304,7 +304,9 @@ IPAMIR_API uint64_t ipamir_val_obj (void * solver)
     if (s->nomodel) return 0;
     pb_solver = s->solver;
     char* tmp = toString(s->solver->best_goalvalue);
-    return strtoull(tmp, nullptr, 10);
+    int64_t res = strtoull(tmp, nullptr, 10);
+    xfree(tmp);
+    return res;
 }
 
 /**
