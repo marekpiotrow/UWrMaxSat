@@ -15,8 +15,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: install gmp
       run: |
-        brew list gmp | grep "gmp.h"
-        brew list gmp | grep "libgmp10.dylib"
+        pkg-config gmp
     - name: build COMiniSatPS
       run: |
         cd ..
