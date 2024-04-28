@@ -42,5 +42,5 @@ jobs:
       run: |
         USESCIP= make clean
         sed -i '' 's/BIGWEIGHTS?=#/BIGWEIGHTS?=/' config.mk
-        USESCIP= make r
+        USESCIP= CXXFLAGS=$(pkg-config --cflags gmp) LDFLAGS=$(pkg-config --libs gmp) make r
         build/release/bin/uwrmaxsat -of Examples/stein27_bignum.opb
