@@ -36,6 +36,7 @@ static inline int memReadStat(int field)
     char  name[256];
     pid_t pid = getpid();
     int   value;
+    extern int exit_code;
 
     sprintf(name, "/proc/%d/statm", pid);
     FILE* in = fopen(name, "rb");
@@ -43,7 +44,7 @@ static inline int memReadStat(int field)
 
     for (; field >= 0; field--)
         if (fscanf(in, "%d", &value) != 1)
-            printf("ERROR! Failed to parse memory statistics from \"/proc\".\n"), exit(1);
+            printf("ERROR! Failed to parse memory statistics from \"/proc\".\n"), exit(exit_code);
     fclose(in);
     return value;
 }

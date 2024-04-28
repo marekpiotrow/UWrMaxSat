@@ -159,5 +159,5 @@ int main(int argc, char** argv)
   if (opt_scip_parallel)
 	  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 #endif
-  std::_Exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
+  std::_Exit(exit_code); // (faster than "return", which will invoke the destructor for 'PbSolver')
 }

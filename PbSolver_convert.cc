@@ -93,7 +93,7 @@ bool PbSolver::convertPbs(bool first_call)
 	    if (opt_convert != ct_Adders)  { opt_convert = ct_Adders; continue; }
             else {
 	        reportf("Out of memery in converting constraints: %s\n",ba.what());
-	        _Exit(1);
+	        _Exit(0);
 	    }
         }
         if (!okay()) return false;
@@ -114,7 +114,7 @@ bool PbSolver::convertPbs(bool first_call)
             reportf("New vars/cls: %d/%d\n", -nvars, -ncls);
     } catch (std::bad_alloc& ba) {
       reportf("Out of memery in clausifying constraints: %s\n",ba.what());
-      _Exit(1);
+      _Exit(0);
     }
     return okay();
 }

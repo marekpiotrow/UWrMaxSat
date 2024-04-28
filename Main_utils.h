@@ -7,6 +7,7 @@ extern bool   opt_preprocess;
 extern bool   opt_old_format;
 extern int    opt_mem_lim;
 extern bool   opt_use_maxpre;
+extern int    exit_code;
 
 #ifdef MAXPRE
 extern char  *opt_maxpre_str;
@@ -18,8 +19,11 @@ extern int    opt_maxpre_skip;
 extern bool   opt_use_scip_slvr;
 extern double opt_scip_cpu;
 extern double opt_scip_cpu_default;
+extern double opt_scip_cpu_add;
 extern bool   opt_scip_parallel;
 extern time_t wall_clock_time;
+extern bool   opt_force_scip;
+extern double opt_scip_delay;
 #endif
 
 extern MsSolver *pb_solver;

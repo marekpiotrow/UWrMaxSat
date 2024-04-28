@@ -87,6 +87,7 @@ bool     opt_maxsat_prepr  = true;
 bool     opt_use_maxpre    = false;
 bool     opt_reuse_sorters = true;
 uint64_t opt_unsat_conflicts = 5000000;
+int      exit_code         = 0;
 #ifdef MAXPRE
 char     opt_maxpre_str[80]= "[uvsrgc]";
 int      opt_maxpre_time   = 0;
@@ -97,9 +98,12 @@ maxPreprocessor::PreprocessorInterface *maxpre_ptr = NULL;
 #ifdef USE_SCIP
 bool     opt_use_scip_slvr = true;
 double   opt_scip_cpu      = 0;
-double   opt_scip_cpu_default = 400;
+double   opt_scip_cpu_default = 600;
+double   opt_scip_cpu_add  = 400;
 bool     opt_scip_parallel = true;
 time_t   wall_clock_time;
+bool     opt_force_scip = false;
+double   opt_scip_delay = 0;
 #endif
 
 char*    opt_input  = NULL;
@@ -159,18 +163,18 @@ void outputResult(const PbSolver& S, bool optimum)
 
     if (opt_output_top < 0) {
         if (optimum){
-            if (S.best_goalvalue == Int_MAX) printf("s UNSATISFIABLE\n");
+            if (S.best_goalvalue == Int_MAX) printf("s UNSATISFIABLE\n"), exit_code = 20;
             else {
                 if (!opt_satisfiable_out) {
                     char* tmp = toString(S.best_goalvalue);
                     printf("o %s\n", tmp);
                     xfree(tmp);
                 }
-                printf("s OPTIMUM FOUND\n");
+                printf("s OPTIMUM FOUND\n"), exit_code = 30;
             }
         }else{
-            if (S.best_goalvalue == Int_MAX) printf("s UNKNOWN\n");
-            else                             printf("%c SATISFIABLE\n", (opt_satisfiable_out ? 's' : 'c'));
+            if (S.best_goalvalue == Int_MAX) printf("s UNKNOWN\n"), exit_code = 0;
+            else                             printf("%c SATISFIABLE\n", (opt_satisfiable_out ? 's' : 'c')), exit_code = 10;
         }
         resultsPrinted = true;
     } else if (opt_output_top == 1) resultsPrinted = true;
@@ -313,12 +317,12 @@ void handlerOutputResult(const PbSolver& S, bool optimum = true)
     }
     const char *out = NULL;
     if (optimum){
-        if (S.best_goalvalue == Int_MAX) out = "s UNSATISFIABLE\n";
-        else                             out = "s OPTIMUM FOUND\n";
+        if (S.best_goalvalue == Int_MAX) out = "s UNSATISFIABLE\n", exit_code = 20;
+        else                             out = "s OPTIMUM FOUND\n", exit_code = 30;
     }else{
-        if (S.best_goalvalue == Int_MAX) out = "s UNKNOWN\n";
-        else if (opt_satisfiable_out)    out = "s SATISFIABLE\n";
-        else                             out = "c SATISFIABLE\n";
+        if (S.best_goalvalue == Int_MAX) out = "s UNKNOWN\n", exit_code = 0;
+        else if (opt_satisfiable_out)    out = "s SATISFIABLE\n", exit_code = 10;
+        else                             out = "c SATISFIABLE\n", exit_code = 10;
     }
     if (out != NULL) strcpy(buf + lst, out), lst += strlen(out);
     lst = write(1, buf, lst); lst = 0;
@@ -331,7 +335,7 @@ void SIGINT_handler(int /*signum*/) {
     reportf("*** INTERRUPTED ***\n");
     //SatELite::deleteTmpFiles();
     fflush(stdout);
-    std::_Exit(0); }
+    std::_Exit(exit_code); }
 
 
 void SIGTERM_handler(int signum) {
@@ -345,7 +349,7 @@ void SIGTERM_handler(int signum) {
     handlerOutputResult(*pb_solver, false);
     //SatELite::deleteTmpFiles();
     //fflush(stdout);
-    std::_Exit(0);
+    std::_Exit(exit_code);
 }
 
 void increase_stack_size(int new_size) // M. Piotrow 16.10.2017
@@ -452,6 +456,8 @@ static cchar* doc =
     "  -no-scip      Do not use SCIP solver. (The default setting is to use it for small instances.)\n"
     "  -scip-cpu=    Timeout in seconds for SCIP solver. Zero - no limit (default).\n"
     "  -no-par       Do not run SCIP solver in a separate thread. Timeout is changed to %gs if not set by user. \n" 
+    "  -force-scip   Force to run SCIP solver. (The default setting is to use it for small instances.)\n"
+    "  -scip-delay=  Time in seconds to delay SCIP start if it has to use the same thread. Zero - no delay (default)\n"
 #endif
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
 ;
@@ -548,7 +554,9 @@ static void parseOptions(int argc, char** argv, bool check_files)
 #endif
 #ifdef USE_SCIP
             else if (oneof(arg, "no-scip"   )) opt_use_scip_slvr = false;
+            else if (oneof(arg, "force-scip")) opt_force_scip    = true;
             else if (strncmp(arg, "-scip-cpu=",  10) == 0) opt_scip_cpu  = atoi(arg+10);
+            else if (strncmp(arg, "-scip-delay=",  12) == 0) opt_scip_delay  = atoi(arg+12);
             else if (oneof(arg, "no-par"    )) opt_scip_parallel = false, opt_scip_cpu = (opt_scip_cpu == 0 ? opt_scip_cpu_default : opt_scip_cpu);
 #endif
             else if (oneof(arg, "s,satlive" )) opt_satlive = false;
@@ -572,13 +580,13 @@ static void parseOptions(int argc, char** argv, bool check_files)
                 opt_use_maxpre = true, opt_maxpre_time  = atoi(arg+13);
 #else
             else if (strncmp(arg, "-maxpre",   7)==0 || strncmp(arg, "-maxpre-skip", 12)==0 || strncmp(arg, "-maxpre-time", 12)==0)
-                fprintf(stderr, "ERROR! MaxPre is not available: invalid command line option: %s\n", argv[i]), exit(1);
+                fprintf(stderr, "ERROR! MaxPre is not available: invalid command line option: %s\n", argv[i]), exit(0);
 #endif
             else if (strncmp(arg, "-top=", 5) == 0) 
                 opt_minimization = 1, opt_maxsat_msu = true, opt_to_bin_search = false, 
                 opt_output_top  = atoi(arg+5);
             else
-                fprintf(stderr, "ERROR! Invalid command line option: %s\n", argv[i]), exit(1);
+                fprintf(stderr, "ERROR! Invalid command line option: %s\n", argv[i]), exit(0);
 
         }else
             args.push(arg);
@@ -600,7 +608,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
         opt_result = args[1];
     else if (args.size() > 2)
         fprintf(stderr, "ERROR! Too many files specified on commandline.\n"),
-        exit(1);
+        exit(0);
 }
 
 void setOptions(int argc, char *argv[], bool check_files)

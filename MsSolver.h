@@ -86,6 +86,7 @@ class IntLitQueue {
 #ifdef USE_SCIP
 #include <scip/scip.h>
 #include <scip/scipdefplugins.h>
+#include "ScipSolver.h"
 #endif
 
 struct AtMost1 {
@@ -99,8 +100,13 @@ class MsSolver final : public PbSolver {
     MsSolver(bool print_info = true, bool use_preprocessing = false)
         : PbSolver(print_info, use_preprocessing)
         , ipamir_used(false)
+        , satisfied(false)
         , harden_goalval(0)
         , fixed_goalval(0)
+        , scip_foundLB(false)
+        , scip_foundUB(false)
+        , scip_LB(Int_MIN)
+        , scip_UB(Int_MAX)
         , goal_gcd(1)
         , last_soft_added_to_sat(INT_MAX)
         , max_input_lit(lit_Undef)
@@ -113,9 +119,11 @@ class MsSolver final : public PbSolver {
         mem.freeAll();
     }
 
-    bool                ipamir_used;
+    bool                ipamir_used, satisfied;
     Int                 harden_goalval,  //  Harden goalval used in the MaxSAT preprocessing 
                         fixed_goalval;   // The sum of weights of soft clauses that must be false
+    bool                scip_foundLB, scip_foundUB;
+    Int                 scip_LB, scip_UB;// When SCIP timeouts, they will contains lower and upper bounds computed by SCIP
     vec<Pair<weight_t, Minisat::vec<Lit>* > > orig_soft_cls; // Soft clauses before preprocessing by MaxPre; empty if MaxPre is not used
     vec<Pair<weight_t, Minisat::vec<Lit>* > > soft_cls; // Relaxed non-unit soft clauses with weights; a relaxing var is the last one in a vector. 
     weight_t            goal_gcd; // gcd of soft_cls weights
@@ -134,7 +142,10 @@ class MsSolver final : public PbSolver {
 
     void ipamir_reset(const vec<Lit>& assumptions) {
         PbSolver::reset();
+        satisfied = false;
         harden_goalval = fixed_goalval = 0;
+        scip_foundLB = scip_foundUB = false;
+        scip_LB = Int_MIN, scip_UB = Int_MAX;
         goal_gcd = 1;
         harden_lits.clear(); am1_rels.clear(); harden_assump.clear();
         assumptions.copyTo(global_assumptions);
@@ -172,7 +183,7 @@ class MsSolver final : public PbSolver {
 
 #ifdef USE_SCIP
     lbool scip_solve(const Minisat::vec<Lit> *assump_ps, const vec<Int> *assump_Cs, const IntLitQueue *delayed_assump,
-            bool weighted_instance, int sat_orig_vars, int sat_orig_cls);
+            bool weighted_instance, int sat_orig_vars, int sat_orig_cls, ScipSolver &scip_solver);
 #endif    
 
     lbool   satSolveLimited(Minisat::vec<Lit> &assump_ps);
