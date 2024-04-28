@@ -13,6 +13,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: install gmp
+      run: |
+        brew update
+        brew install gmp
     - name: build COMiniSatPS
       run: |
         cd ..
