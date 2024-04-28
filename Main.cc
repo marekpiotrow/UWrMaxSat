@@ -32,6 +32,8 @@ Read a DIMACS file and apply the SAT-solver to it.
 #include <unistd.h>
 #include <signal.h>
 #include <atomic>
+#include <chrono>
+#include <thread>
 #include "System.h"
 #include "MsSolver.h"
 #include "PbParser.h"
@@ -48,10 +50,10 @@ Read a DIMACS file and apply the SAT-solver to it.
 int main(int argc, char** argv)
 {
 #ifdef USE_SCIP
-    extern std::atomic<bool> SCIP_found_opt;
+    extern std::atomic<char> opt_finder;
     time(&wall_clock_time);
 #else
-    bool SCIP_found_opt = false;
+    char opt_finder = OPT_NONE;
 #endif
   try {
     setOptions(argc, argv);
@@ -141,18 +143,21 @@ int main(int argc, char** argv)
     // <<== write result to file 'opt_result'
 
     if (opt_command == cmd_Minimize) {
-        if (!SCIP_found_opt) outputResult(*pb_solver, !pb_solver->asynch_interrupt);
+        if (opt_finder != OPT_SCIP) outputResult(*pb_solver, !pb_solver->asynch_interrupt);
     } else if (opt_command == cmd_FirstSolution) {
-        if (!SCIP_found_opt) outputResult(*pb_solver, false);
+        if (opt_finder != OPT_SCIP) outputResult(*pb_solver, false);
     }
 
   } catch (Minisat::OutOfMemoryException&){
-        if (opt_verbosity >= 1 && !SCIP_found_opt) {
+        if (opt_verbosity >= 1 && opt_finder != OPT_SCIP) {
           pb_solver->printStats();
           reportf("Out of memory exception caught\n");
         }
-        if (!SCIP_found_opt) outputResult(*pb_solver, false);
+        if (opt_finder != OPT_SCIP) outputResult(*pb_solver, false);
   }
-
+#ifdef USE_SCIP
+  if (opt_scip_parallel)
+	  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+#endif
   std::_Exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
 }

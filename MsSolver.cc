@@ -27,7 +27,7 @@
 
 #ifdef USE_SCIP
 #include <atomic>
-    extern std::atomic<bool> SCIP_found_opt, MS_found_opt;
+    extern std::atomic<char> opt_finder;
 #endif                
 
 template<typename int_type>
@@ -638,7 +638,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         first_time=true; limitTime(start_solving_cpu + (opt_cpu_lim - start_solving_cpu)/4);
     }
 #ifdef USE_SCIP
-    if (ipamir_used) SCIP_found_opt.store(false);
+    if (ipamir_used) opt_finder.store(OPT_NONE);
     extern bool opt_use_scip_slvr;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
     if (opt_use_scip_slvr && UB_goalval < Int(uint64_t(2) << std::numeric_limits<double>::digits) && l_True == 
@@ -722,7 +722,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 {
 #ifdef USE_SCIP
                     std::lock_guard<std::mutex> lck(optsol_mtx);
-                    if (!SCIP_found_opt) {
+                    if (opt_finder != OPT_SCIP) {
 #endif                
                         best_goalvalue = goalvalue, model.moveTo(best_model);
                         if (gbmo_remain_goal_ps.size() > 0)
@@ -1170,6 +1170,12 @@ SwitchSearchMethod:
         if (UB_goalvalue   != Int_MAX) UB_goalvalue *= goal_gcd;
     }
     if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
+    char test = OPT_NONE;
+    bool MSAT_found_opt = sat && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < INT_MAX
+#ifdef USE_SCIP
+                          && opt_finder.compare_exchange_strong(test, OPT_MSAT)
+#endif
+			  ;
     if (opt_verbosity >= 1 && opt_output_top < 0){
         if      (!sat)
             reportf(asynch_interrupt ? "\bUNKNOWN\b\n" : "\bUNSATISFIABLE\b\n");
@@ -1187,11 +1193,8 @@ SwitchSearchMethod:
        } else {
 #ifdef USE_SCIP
            std::lock_guard<std::mutex> lck(optsol_mtx);
-           if (!SCIP_found_opt) {
-               MS_found_opt.store(true);
-#else
-           {
 #endif
+           if (MSAT_found_opt) {
                char* tmp = toString(best_goalvalue);
                reportf("\bOptimal solution: %s\b\n", tmp);
                xfree(tmp);
@@ -1200,7 +1203,7 @@ SwitchSearchMethod:
     }
     if (opt_verbosity >= 1
 #ifdef USE_SCIP
-            && !SCIP_found_opt
+            && opt_finder != OPT_SCIP 
 #endif
             ) pb_solver->printStats();
 }

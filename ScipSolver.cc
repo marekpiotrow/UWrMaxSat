@@ -25,12 +25,14 @@
 #include <vector>
 #include <future>
 #include <atomic>
+#include <chrono>
+#include <thread>
 #include <scip/struct_message.h>
 
 #define MY_SCIP_CALL(x) do{ SCIP_RETCODE _r_; \
     if ((_r_ = (x)) != SCIP_OKAY) { reportf("SCIP error <%d>\n",_r_); return l_Undef; }} while(0)
 
-std::atomic<bool> SCIP_found_opt(false), MS_found_opt(false);
+std::atomic<char> opt_finder(OPT_NONE);
 
 lbool set_scip_var(SCIP *scip, MsSolver *solver, std::vector<SCIP_VAR *> &vars, Lit lit)
 {
@@ -90,6 +92,7 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
 {
     lbool found_opt = l_Undef;
     SCIP_STATUS status;
+    int64_t best_value = INT64_MAX;
 
     MY_SCIP_CALL(SCIPsolve(scip));
     status = SCIPgetStatus(scip);
@@ -100,9 +103,7 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
         SCIP_SOL *sol = SCIPgetBestSol(scip);
         assert(sol != nullptr);
         // MY_SCIP_CALL(SCIPprintSol(scip, sol, nullptr, FALSE));
-        solver->best_goalvalue = obj_offset + long(round(SCIPgetSolOrigObj(scip, sol)));
-        if (!solver->ipamir_used || opt_verbosity > 0) 
-            reportf("SCIP optimum (rounded): %ld\n", tolong(solver->best_goalvalue));
+        best_value = obj_offset + long(round(SCIPgetSolOrigObj(scip, sol)));
         for (Var x = 0; x < (int)vars.size(); x++)
         {
             if (vars[x] != nullptr) {
@@ -110,8 +111,6 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
                 scip_model[x] = lbool(v > 0.5);
             }
         }
-        extern bool opt_satisfiable_out;
-        opt_satisfiable_out = false;
     } else if (status == SCIP_STATUS_INFEASIBLE) {
         found_opt = l_False;
         if (opt_verbosity > 0) reportf("SCIP result: UNSATISFIABLE\n");
@@ -130,9 +129,11 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
     // if optimum found, exit
     if (found_opt == l_True) {
         std::lock_guard<std::mutex> lck(optsol_mtx);
-        if (!MS_found_opt) {
-            SCIP_found_opt.store(true);
-
+	char test = OPT_NONE;
+        if (opt_finder.compare_exchange_strong(test, OPT_SCIP)) {
+	    if (!solver->ipamir_used || opt_verbosity > 0) 
+		    reportf("SCIP optimum (rounded): %" PRId64 "\n", best_value);
+	    solver->best_goalvalue = best_value;
             vec<lbool> opt_model(scip_model.size()); 
             for (int i = scip_model.size() - 1; i >= 0 ; i--) opt_model[i] = scip_model[i];
             solver->sat_solver.extendGivenModel(opt_model);
@@ -141,7 +142,12 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
             Minisat::vec<Lit> soft_unsat; // Not used in this context
             solver->best_goalvalue = (solver->fixed_goalval + evalGoal(solver->soft_cls, solver->best_model, soft_unsat)) * solver->goal_gcd;
 
+	    extern bool opt_satisfiable_out;
+	    opt_satisfiable_out = false;
+
             if (opt_verbosity >= 1) {
+
+              { std::lock_guard<std::mutex> lck(stdout_mtx);
                 SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip);
                 auto mi = mh->messageinfo;
                 mh->messageinfo = uwrMessageInfo;
@@ -152,10 +158,12 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
                 SCIPprintTimingStatistics(scip, nullptr);
                 mh->messageinfo = mi;
                 MY_SCIP_CALL(SCIPsetMessagehdlr(scip, mh));
+	      }
                 solver->printStats(false);
             }
             if (!solver->ipamir_used) {
                 outputResult(*solver, true);
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 //MY_SCIP_CALL(SCIPfree(&scip));
                 std::_Exit(0);
             }

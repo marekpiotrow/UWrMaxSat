@@ -26,6 +26,8 @@
 #include "VecMaps.h"
 #include "Sort.h"
 
+enum OptFinder {OPT_NONE, OPT_SCIP, OPT_MSAT};
+
 Int evalGoal(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls, vec<bool>& model, Minisat::vec<Lit>& soft_unsat);
 
 static inline int hleft (int i)  { return i * 2; }
