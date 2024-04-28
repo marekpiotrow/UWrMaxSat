@@ -13,9 +13,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: install gmp
-      run: |
-        pkg-config gmp
     - name: build COMiniSatPS
       run: |
         cd ..
@@ -34,7 +31,7 @@ jobs:
     - name: build UWrMaxSat
       run: |
         make config
-        USESCIP= make r
+        USESCIP= CXXFLAGS=$(pkg-config --cflags gmp) LDFLAGS=$(pkg-config --libs gmp) make r
     - name: test executable
       run: |
         build/release/bin/uwrmaxsat -of Examples/unsat.opb
