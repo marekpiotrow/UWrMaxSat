@@ -105,7 +105,7 @@ public:
       #endif
         if (pos == File_BufSize){
             ssize_t wrote = write(fd, buf, File_BufSize);
-            if (wrote != File_BufSize) printf("ERROR! Write failed.\n"), exit(1);
+            if (wrote != File_BufSize) printf("ERROR! Write failed.\n"), exit(0);
             pos = 0; }
         return buf[pos++] = (uchar)chr; }
 
@@ -129,7 +129,7 @@ public:
     void flush(void) {
         assert(mode == WRITE);
         ssize_t wrote = write(fd, buf, pos);
-        if (wrote != pos) printf("ERROR! Write failed.\n"), exit(1);
+        if (wrote != pos) printf("ERROR! Write failed.\n"), exit(0);
         pos = 0; }
 
     void  seek(int64 pos, int whence = SEEK_SET);

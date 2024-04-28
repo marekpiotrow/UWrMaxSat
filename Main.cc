@@ -154,5 +154,5 @@ int main(int argc, char** argv)
         if (!SCIP_found_opt) outputResult(*pb_solver, false);
   }
 
-  std::_Exit(0); // (faster than "return", which will invoke the destructor for 'PbSolver')
+  std::_Exit(exit_code); // (faster than "return", which will invoke the destructor for 'PbSolver')
 }

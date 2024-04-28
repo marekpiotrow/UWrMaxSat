@@ -497,7 +497,7 @@ static bool parse_PB(B& in, S& solver, bool old_format, bool abort_on_error)
             xfree(msg);
             if (opt_satlive && !opt_try)
                 printf("s UNKNOWN\n");
-            exit(5);
+            exit(0);
         }else
             throw msg;
     }
@@ -528,7 +528,7 @@ static bool parse_WCNF(B& in, S& solver, bool abort_on_error)
             xfree(msg);
             if (opt_satlive && !opt_try)
                 printf("s UNKNOWN\n");
-            exit(5);
+            exit(0);
         }else
             throw msg;
     }
