@@ -99,7 +99,7 @@ maxPreprocessor::PreprocessorInterface *maxpre_ptr = NULL;
 bool     opt_use_scip_slvr = true;
 double   opt_scip_cpu      = 0;
 double   opt_scip_cpu_default = 600;
-double   opt_scip_cpu_add  = 400;
+double   opt_scip_cpu_add  = 600;
 bool     opt_scip_parallel = true;
 time_t   wall_clock_time;
 bool     opt_force_scip = false;

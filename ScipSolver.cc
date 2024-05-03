@@ -93,15 +93,17 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
     extern double opt_scip_cpu, opt_scip_cpu_add;
     lbool found_opt = l_Undef;
     SCIP_STATUS status;
+    int64_t best_value = INT64_MAX;
     int try_count = 3;
     bool try_again, obj_limit_applied = false;
     int64_t bound_gap = INT64_MAX;
 
     if (solver->best_goalvalue < WEIGHT_MAX) {
         MY_SCIP_CALL(SCIPsetObjlimit(scip, 
-                                tolong(solver->best_goalvalue * solver->goal_gcd - obj_offset)));
+                          SCIP_Real(tolong(solver->best_goalvalue * solver->goal_gcd - obj_offset))));
         obj_limit_applied = true;
     }
+    MY_SCIP_CALL(SCIPsetObjIntegral(scip));
     do {
        try_again = false; 
        MY_SCIP_CALL(SCIPsolve(scip));
@@ -121,18 +123,25 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
             }
         }
     } else if (status == SCIP_STATUS_INFEASIBLE) {
-        if (obj_limit_applied) return l_True; // SCIP proved optimality of the best_goalvalue
-        found_opt = l_False;
-        if (opt_verbosity > 0) reportf("SCIP result: UNSATISFIABLE\n");
-        if (!solver->ipamir_used) { 
-            printf("s UNSATISFIABLE\n");
-            std::_Exit(20);
+        if (obj_limit_applied) { // SCIP proved optimality of the last MaxSAT o-value 
+            if (!solver->ipamir_used || opt_verbosity > 0)
+                reportf("SCIP proved optimality of the last o-value\n");
+            solver->printStats(true);
+            return l_True;
+        } else {
+            found_opt = l_False;
+            if (opt_verbosity > 0) reportf("SCIP result: UNSATISFIABLE\n");
+            if (!solver->ipamir_used) { 
+                printf("s UNSATISFIABLE\n");
+                std::_Exit(20);
+            }
         }
     } else {
         SCIP_Real dualb = SCIPgetDualbound(scip), primb = SCIPgetPrimalbound(scip);
         int64_t lbound = (!SCIPisInfinity(scip, dualb) ? int64_t(round(dualb)) + obj_offset : INT64_MIN);
         int64_t ubound = (!SCIPisInfinity(scip, primb) ? int64_t(round(primb)) + obj_offset : INT64_MAX);
-        if (!solver->ipamir_used || opt_verbosity > 0) reportf("SCIP timeout with lower and upper bounds: [%lld, %lld]\n", lbound, ubound);
+        if (!solver->ipamir_used || opt_verbosity > 0)
+            reportf("SCIP timeout with lower and upper bounds: [%lld, %lld]\n", lbound, ubound);
         if (!SCIPisInfinity(scip, dualb)) {
             int64_t lb = (solver->goal_gcd == 1 ? lbound : (lbound > 0 ? lbound + solver->goal_gcd - 1 : lbound) / solver->goal_gcd);
             if (Int(lb) > solver->scip_LB) solver->scip_LB = lb, solver->scip_foundLB = true;
@@ -150,7 +159,7 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
                             scip_model[x] = lbool(v > 0.5);
                         }
                     std::lock_guard<std::mutex> lck(optsol_mtx);
-                    if (!MS_found_opt) {
+                    if (opt_finder.load() != OPT_MSAT) {
                         vec<lbool> opt_model(scip_model.size()); 
                         for (int i = scip_model.size() - 1; i >= 0 ; i--) opt_model[i] = scip_model[i];
                         solver->sat_solver.extendGivenModel(opt_model);
@@ -260,7 +269,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     extern bool opt_force_scip;
 
     if (!res || !opt_force_scip &&
-            (sat_solver.nFreeVars() >= 100000 || sat_orig_cls >= 150000 || soft_cls.size() >=  100000))
+            (sat_solver.nFreeVars() >= 100000 || sat_orig_cls >= 600000 || soft_cls.size() >=  100000))
         return l_Undef;
 
     extern double opt_scip_cpu, opt_scip_delay;
@@ -275,6 +284,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     char *base = nullptr;
     if (opt_input != nullptr) base = strrchr(opt_input,'/'), base = (base ? base+1 : opt_input); 
     MY_SCIP_CALL(SCIPcreateProbBasic(scip, (base != nullptr ? base : "IPAMIR of UWrMaxSat")));
+    MY_SCIP_CALL(SCIPsetEmphasis(scip, SCIP_PARAMEMPHASIS_DEFAULT, TRUE));
     if (opt_scip_cpu > 0) 
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
     if (opt_verbosity <= 1)

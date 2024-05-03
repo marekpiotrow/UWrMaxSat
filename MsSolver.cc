@@ -1192,10 +1192,12 @@ SwitchSearchMethod:
         if (UB_goalvalue   != Int_MAX) UB_goalvalue *= goal_gcd;
     }
     if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
-    char test = OPT_NONE;
-    bool MSAT_found_opt = sat && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < INT_MAX
 #ifdef USE_SCIP
-                          && opt_finder.compare_exchange_strong(test, OPT_MSAT)
+    char test = OPT_NONE;
+    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < INT_MAX
+                          && opt_finder.compare_exchange_strong(test, OPT_MSAT);
+#else
+    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < INT_MAX;
 #endif
 			  ;
     if (opt_verbosity >= 1 && opt_output_top < 0){
