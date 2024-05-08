@@ -129,10 +129,12 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
             solver->printStats(true);
             return l_True;
         } else {
+            std::lock_guard<std::mutex> lck(optsol_mtx);
             found_opt = l_False;
-            if (opt_verbosity > 0) reportf("SCIP result: UNSATISFIABLE\n");
-            if (!solver->ipamir_used) { 
-                printf("s UNSATISFIABLE\n");
+            char test = OPT_NONE;
+            if (!solver->ipamir_used && opt_finder.compare_exchange_strong(test, OPT_SCIP) ) { 
+                if (opt_verbosity > 0) reportf("SCIP result: UNSATISFIABLE\n");
+                printf("s UNSATISFIABLE\n"); fflush(stdout);
                 std::_Exit(20);
             }
         }

@@ -865,6 +865,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             convertPbs(false);
         }
       } else { // UNSAT returned
+        if (sat_solver.conflict.size() == 0) break;          // unconditional UNSAT
         sat_solver.conflict.copyTo(sat_conflicts);
         if (global_assumptions.size() > 0 || harden_assump.size() > 0) {
             int j = 0;
@@ -1196,10 +1197,10 @@ SwitchSearchMethod:
     if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
 #ifdef USE_SCIP
     char test = OPT_NONE;
-    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX
+    bool MSAT_found_opt = (!satisfied || satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX)
                           && opt_finder.compare_exchange_strong(test, OPT_MSAT);
 #else
-    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX;
+    bool MSAT_found_opt = !satisfied || satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX;
 #endif
 			  ;
     if (opt_verbosity >= 1 && opt_output_top < 0){
