@@ -30,7 +30,7 @@ struct ScipSolver {
     SCIP *                   scip; 
     std::vector<SCIP_VAR *>  vars;
     std::vector<lbool>       model;
-    weight_t                 obj_offset;
+    int64_t                  obj_offset;
     bool                     must_be_started;
 
     ScipSolver() : scip(nullptr), obj_offset(0), must_be_started(false) {}
@@ -40,6 +40,6 @@ lbool scip_solve_async(SCIP *scip,
                        std::vector<SCIP_VAR *> vars,
                        std::vector<lbool> scip_model,
                        MsSolver *solver,
-                       weight_t obj_offset);
+                       int64_t obj_offset);
 
 #endif

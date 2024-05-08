@@ -34,13 +34,20 @@ jobs:
         USESCIP= CXXFLAGS=$(pkg-config --cflags gmp) LDFLAGS=$(pkg-config --libs gmp) make r
     - name: test executable
       run: |
+        set +e
         build/release/bin/uwrmaxsat -of Examples/unsat.opb
+        if ! [ $? -eq 20 ] ; then exit 1 ; fi
         build/release/bin/uwrmaxsat -of Examples/garden9x9.opb
+        if ! [ $? -eq 30 ] ; then exit 1 ; fi
         build/release/bin/uwrmaxsat -bm Examples/satellite02ac.wcsp.wcnf
+        if ! [ $? -eq 30 ] ; then exit 1 ; fi
         build/release/bin/uwrmaxsat -maxpre -bm Examples/satellite02ac.wcsp.wcnf
+        if ! [ $? -eq 30 ] ; then exit 1 ; fi
     - name: build and test BIGWEIGHTS
       run: |
         USESCIP= make clean
         sed -i '' 's/BIGWEIGHTS?=#/BIGWEIGHTS?=/' config.mk
         USESCIP= CXXFLAGS=$(pkg-config --cflags gmp) LDFLAGS=$(pkg-config --libs gmp) make r
+        set +e
         build/release/bin/uwrmaxsat -of Examples/stein27_bignum.opb
+        if ! [ $? -eq 30 ] ; then exit 1 ; fi

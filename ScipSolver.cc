@@ -88,7 +88,7 @@ void uwrLogMessage(FILE *file, const char *msg)
 }
 SCIP_DECL_MESSAGEINFO(uwrMessageInfo) { (void)(messagehdlr); uwrLogMessage(file, msg); }
 
-lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbool> scip_model, MsSolver *solver, weight_t obj_offset)
+lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbool> scip_model, MsSolver *solver, int64_t obj_offset)
 {
     extern double opt_scip_cpu, opt_scip_cpu_add;
     lbool found_opt = l_Undef;
@@ -142,16 +142,17 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
         int64_t ubound = (!SCIPisInfinity(scip, primb) ? int64_t(round(primb)) + obj_offset : INT64_MAX);
         if (!solver->ipamir_used || opt_verbosity > 0)
             reportf("SCIP timeout with lower and upper bounds: [%lld, %lld]\n", lbound, ubound);
+        int64_t gcd = fromweight(solver->goal_gcd);
         if (!SCIPisInfinity(scip, dualb)) {
-            int64_t lb = (solver->goal_gcd == 1 ? lbound : (lbound > 0 ? lbound + solver->goal_gcd - 1 : lbound) / solver->goal_gcd);
+            int64_t lb = (gcd == 1 ? lbound : (lbound > 0 ? lbound + gcd - 1 : lbound) / gcd);
             if (Int(lb) > solver->scip_LB) solver->scip_LB = lb, solver->scip_foundLB = true;
         }
         if (!SCIPisInfinity(scip, primb)) {
-            int64_t ub = (solver->goal_gcd == 1 ? ubound : (ubound < 0 ? ubound - solver->goal_gcd + 1 : ubound) / solver->goal_gcd);
+            int64_t ub = (gcd == 1 ? ubound : (ubound < 0 ? ubound - gcd + 1 : ubound) / gcd);
             if (Int(ub) < solver->scip_UB) solver->scip_UB = ub, solver->scip_foundUB = true;
             SCIP_SOL *sol = SCIPgetBestSol(scip);
             if (sol != nullptr) {
-                Int scip_sol = (obj_offset + weight_t(round(SCIPgetSolOrigObj(scip, sol)))) / solver->goal_gcd;
+                Int scip_sol = (obj_offset + int64_t(round(SCIPgetSolOrigObj(scip, sol)))) / gcd;
                 if (scip_sol < solver->best_goalvalue) {
                     for (Var x = 0; x < (int)vars.size(); x++)
                         if (vars[x] != nullptr) {
@@ -200,7 +201,8 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
 		    reportf("SCIP optimum (rounded): %" PRId64 "\n", best_value);
 	    solver->best_goalvalue = best_value;
             vec<lbool> opt_model(scip_model.size()); 
-            for (int i = scip_model.size() - 1; i >= 0 ; i--) opt_model[i] = scip_model[i];
+            for (int i = scip_model.size() - 1; i >= 0 ; i--)
+                opt_model[i] = (scip_model[i] == l_Undef && !solver->sat_solver.isEliminated(i) ? l_False : scip_model[i]);
             solver->sat_solver.extendGivenModel(opt_model);
             solver->best_model.clear();
             for (int x = 0; x < solver->pb_n_vars; x++) solver->best_model.push(opt_model[x] != l_False);
@@ -315,12 +317,12 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
         }
     }
 #endif
-    weight_t obj_offset = 0;
+    int64_t obj_offset = 0;
     int obj_vars = 0;
     auto set_var_coef = [&vars, &obj_offset, &obj_vars, scip, this](Lit relax, weight_t weight)
     {
         if (value(relax) != l_Undef) {
-            if (value(relax) == l_False) obj_offset += weight * this->goal_gcd;
+            if (value(relax) == l_False) obj_offset += fromweight(weight) * fromweight(this->goal_gcd);
         } else {
             obj_vars++;
             weight_t coef = sign(relax) ? weight : -weight;
@@ -329,7 +331,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             auto v = vars[var(relax)];
             MY_SCIP_CALL(SCIPaddVarObj(scip, v, double(coef)));
             if (coef < 0)
-                obj_offset -= coef;
+                obj_offset -= fromweight(coef);
         }
         return l_Undef;
     };
@@ -365,9 +367,9 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
         if (set_var_coef(relax, weight) == l_False) return l_False;
     }
     if (opt_verbosity >= 2)
-        reportf("SCIPobj: obj_var=%d, obj_offset=%ld, ob_offset_to_add: %ld %ld\n", obj_vars, obj_offset,
+        reportf("SCIPobj: obj_var=%d, obj_offset=%" PRId64 ", ob_offset_to_add: %ld %ld\n", obj_vars, obj_offset,
                 goal_gcd * tolong(fixed_goalval), goal_gcd*tolong(harden_goalval));
-    obj_offset += goal_gcd * tolong(fixed_goalval + harden_goalval);
+    obj_offset += fromweight(goal_gcd) * tolong(fixed_goalval + harden_goalval);
 
     // 5. do solve
     // MY_SCIP_CALL((SCIPwriteOrigProblem(scip, "1.lp", nullptr, FALSE)));

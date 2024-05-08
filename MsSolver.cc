@@ -411,31 +411,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     if (opt_verbosity >= 1) sat_solver.verbEveryConflicts = 100000;
     sat_solver.setIncrementalMode();
 #endif
+    // Convert PB constraints:
     pb_n_vars = nVars();
     pb_n_constrs = nClauses();
-    if (soft_cls.size() == 0) {
-        extern bool opt_satisfiable_out;
-        Minisat::vec<Lit> assump_ps;
-        Lit assump_lit = lit_Undef;
-        if (global_assumptions.size() == 0) {
-            assump_lit = mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true);
-            assump_ps.push(assump_lit);
-        }
-        if (opt_verbosity >= 1) sat_solver.printVarsCls();
-        lbool status = satSolveLimited(assump_ps);
-        best_goalvalue = (status == l_True ? fixed_goalval : INT_MAX);
-        if (status == l_True) {
-            best_model.clear();
-            for (Var x = 0; x < pb_n_vars; x++)
-                assert(sat_solver.modelValue(x) != l_Undef),
-                    best_model.push(sat_solver.modelValue(x) == l_True);
-        }
-        if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
-            asynch_interrupt = true;
-        if (!ipamir_used) opt_satisfiable_out = false;
-        return;
-    }
-    // Convert constraints:
     if (constrs.size() > 0) {
         if (opt_verbosity >= 1)
             reportf("Converting %d PB-constraints to clauses...\n", constrs.size());
@@ -446,6 +424,29 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         }
         if (opt_convert_goal != ct_Undef)
             opt_convert = opt_convert_goal;
+    }
+    if (soft_cls.size() == 0) {
+        extern bool opt_satisfiable_out;
+        Minisat::vec<Lit> assump_ps;
+        Lit assump_lit = lit_Undef;
+        if (global_assumptions.size() == 0 && ipamir_used) {
+            assump_lit = mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true);
+            assump_ps.push(assump_lit);
+        }
+        if (opt_verbosity >= 1) sat_solver.printVarsCls();
+        lbool status = satSolveLimited(assump_ps);
+        best_goalvalue = (status == l_True ? fixed_goalval : Int_MAX);
+        if (status == l_True) {
+            satisfied = true;
+            best_model.clear();
+            for (Var x = 0; x < pb_n_vars; x++)
+                assert(sat_solver.modelValue(x) != l_Undef),
+                    best_model.push(sat_solver.modelValue(x) == l_True);
+        }
+        if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
+            asynch_interrupt = true;
+        if (!ipamir_used) opt_satisfiable_out = false;
+        return;
     }
 
     // Freeze goal function variables (for SatELite):
@@ -549,6 +550,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             pj = p; j++; min_weight = 0;
         }
     }
+    if (j > 0 && soft_cls[j-1].fst == 0) j--;
     if (j < soft_cls.size()) soft_cls.shrink(soft_cls.size() - j);
     top_for_strat = top_for_hard = soft_cls.size();
     Sort::sort(soft_cls);
@@ -644,7 +646,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     extern bool opt_use_scip_slvr;
     ScipSolver scip_solver;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
-    if (opt_use_scip_slvr && UB_goalval < Int(uint64_t(2) << std::numeric_limits<double>::digits) && l_True == 
+    if (opt_use_scip_slvr && UB_goalval * goal_gcd < Int(uint64_t(1) << std::numeric_limits<double>::digits - 3) && l_True == 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls, scip_solver)) {
         if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
         return;
@@ -1194,16 +1196,16 @@ SwitchSearchMethod:
     if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
 #ifdef USE_SCIP
     char test = OPT_NONE;
-    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < INT_MAX
+    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX
                           && opt_finder.compare_exchange_strong(test, OPT_MSAT);
 #else
-    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < INT_MAX;
+    bool MSAT_found_opt = satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX;
 #endif
 			  ;
     if (opt_verbosity >= 1 && opt_output_top < 0){
         if      (!satisfied)
             reportf(asynch_interrupt ? "\bUNKNOWN\b\n" : "\bUNSATISFIABLE\b\n");
-        else if (soft_cls.size() == 0 && best_goalvalue == INT_MAX)
+        else if (soft_cls.size() == 0 && best_goalvalue == Int_MAX)
             reportf("\bSATISFIABLE: No goal function specified.\b\n");
         else if (cmd == sc_FirstSolution){
             char* tmp = toString(best_goalvalue);
