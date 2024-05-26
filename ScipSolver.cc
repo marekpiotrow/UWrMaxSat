@@ -1,5 +1,5 @@
 /**************************************************************************************[MsSolver.cc]
-  Copyright (c) 2021, Marek Piotrów
+  Copyright (c) 2021-2024, Marek Piotrów
 
   Based on an extension of UWrMaxSat done by Dongxu Wang (2021) that added SCIP solver to the project.
 

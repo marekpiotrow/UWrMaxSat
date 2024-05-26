@@ -4,7 +4,7 @@ Minisat+ -- Copyright (c) 2005-2010, Niklas Een, Niklas Sorensson
 
 KP-MiniSat+ based on MiniSat+ -- Copyright (c) 2018-2020 Michał Karpiński, Marek Piotrów
 
-UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2021 Marek Piotrów
+UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2024 Marek Piotrów
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -388,7 +388,7 @@ PbSolver::solve_Command convert(Command cmd) {
 
 static cchar* doc =
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
-    "UWrMaxSat 1.4 -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-2022)\n" 
+    "UWrMaxSat 1.5 -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-2024)\n" 
     "and PB solver by Marek Piotrów and Michał Karpiński (2018) -- an extension of\n"
     "MiniSat+ 1.1, based on MiniSat 2.2.0  -- (C) Niklas Een, Niklas Sorensson (2012)\n"
     "with COMiniSatPS by Chanseok Oh (2016) as the SAT solver\n"

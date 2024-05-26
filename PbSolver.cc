@@ -3,7 +3,7 @@ Copyright (c) 2005-2010, Niklas Een, Niklas Sorensson
 
 KP-MiniSat+ based on MiniSat+ -- Copyright (c) 2018-2020 Michał Karpiński, Marek Piotrów
 
-UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2020 Marek Piotrów
+UWrMaxSat based on KP-MiniSat+ -- Copyright (c) 2019-2024 Marek Piotrów
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

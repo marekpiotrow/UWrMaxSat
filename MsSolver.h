@@ -1,5 +1,5 @@
 /**************************************************************************************[MsSolver.h ]
-  Copyright (c) 2018-2019, Marek Piotrów
+  Copyright (c) 2018-2024, Marek Piotrów
 
   Based on PbSolver.h ( Copyright (c) 2005-2010, Niklas Een, Niklas Sorensson)
 

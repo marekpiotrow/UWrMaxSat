@@ -1,5 +1,5 @@
 /***************************************************************************************[MsSolver.cc]
-  Copyright (c) 2018-2021, Marek Piotrów
+  Copyright (c) 2018-2024, Marek Piotrów
 
   Based on PbSolver.cc ( Copyright (c) 2005-2010, Niklas Een, Niklas Sorensson)
 
