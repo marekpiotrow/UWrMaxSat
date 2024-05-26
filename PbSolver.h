@@ -38,7 +38,9 @@ using weight_t = Int;
 using weight_t = int64_t;
 #define toweight(x) tolong(x)
 #define fromweight(x) (x)
-static inline const char *toString(weight_t x) { static char buf[30]; sprintf(buf, "%" PRId64, x); return buf;  }
+static inline const char *toString(weight_t x) { 
+    static char buf[30]; snprintf(buf, sizeof(buf), "%" PRId64, x); return buf;
+}
 #define WEIGHT_MAX std::numeric_limits<weight_t>::max()
 #endif
 #define WEIGHTSUM_MAX Int_MAX

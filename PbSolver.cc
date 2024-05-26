@@ -462,7 +462,7 @@ bool PbSolver::rewriteAlmostClauses()
             // Split clause part:
             if (opt_verbosity >= 2) reportf("s");
             found = true;
-            sprintf(buf, "@split%d", n_splits);
+            snprintf(buf, sizeof(buf), "@split%d", n_splits);
             n_splits++;
             Var x = getVar(buf); assert(x == sat_solver.nVars()-1);
             ps.clear();

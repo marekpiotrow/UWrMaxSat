@@ -30,6 +30,10 @@
     extern std::atomic<char> opt_finder;
 #endif                
 
+#ifdef CADICAL
+    volatile bool SimpSolver::AlarmTerm::timesup = false;
+#endif
+
 template<typename int_type>
 static int_type gcd(int_type small, int_type big) {
     if (small < 0) small = -small;
@@ -425,7 +429,15 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (opt_convert_goal != ct_Undef)
             opt_convert = opt_convert_goal;
     }
-    if (soft_cls.size() == 0) {
+
+    // Freeze goal function variables (for SatELite):
+    for (int i = soft_cls.size() - 1; i >= 0; i--) 
+        for (int j = soft_cls[i].snd->size() - 1; j >= 0; j--) 
+            sat_solver.setFrozen(var((*soft_cls[i].snd)[j]), true);
+
+    sat_solver.verbosity = opt_verbosity - 1;
+
+    if (opt_output_top < 0) {
         extern bool opt_satisfiable_out;
         Minisat::vec<Lit> assump_ps;
         Lit assump_lit = lit_Undef;
@@ -433,7 +445,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             assump_lit = mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true);
             assump_ps.push(assump_lit);
         }
-        if (opt_verbosity >= 1) sat_solver.printVarsCls();
+        if (opt_verbosity >= 1 && soft_cls.size() == 0) sat_solver.printVarsCls();
         lbool status = satSolveLimited(assump_ps);
         best_goalvalue = (status == l_True ? fixed_goalval : Int_MAX);
         if (status == l_True) {
@@ -445,18 +457,20 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         }
         if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
             asynch_interrupt = true;
-        if (!ipamir_used) opt_satisfiable_out = false;
-        return;
+        if (soft_cls.size() == 0) {
+            if (!ipamir_used) opt_satisfiable_out = false;
+            return;
+        } else if (status == l_True) {
+            Minisat::vec<Lit> soft_unsat;
+            best_goalvalue = fixed_goalval + evalGoal(soft_cls, best_model, soft_unsat);
+            char* tmp = toString(best_goalvalue);
+            if (opt_satisfiable_out && (opt_satlive || opt_verbosity == 0))
+                printf("o %s\n", tmp), fflush(stdout);
+            else if (opt_verbosity > 0 || !opt_satisfiable_out && !ipamir_used) 
+                reportf("Found solution: %s\n", tmp);
+            xfree(tmp);
+        }
     }
-
-    // Freeze goal function variables (for SatELite):
-    for (int i = 0; i < soft_cls.size(); i++) {
-        sat_solver.setFrozen(var(soft_cls[i].snd->last()), true);
-        if (opt_output_top > 0)
-            for (int j = soft_cls[i].snd->size() - 2; j >= 0; j--) 
-                sat_solver.setFrozen(var((*soft_cls[i].snd)[j]), true);
-    }
-    sat_solver.verbosity = opt_verbosity - 1;
 
     goal_gcd = soft_cls[0].fst;
     for (int i = 1; i < soft_cls.size() && goal_gcd != 1; ++i) goal_gcd = gcd(goal_gcd, soft_cls[i].fst);
@@ -464,8 +478,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (LB_goalvalue != Int_MIN) LB_goalvalue /= Int(goal_gcd);
         if (UB_goalvalue != Int_MAX) UB_goalvalue /= Int(goal_gcd);
     }
-
-    assert(best_goalvalue == Int_MAX);
 
     opt_sort_thres *= opt_goal_bias;
     opt_maxsat = true;
@@ -592,9 +604,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         }
         top_for_strat = top_for_hard = last_soft_added_to_sat = 0;
     } else {
-        for (int i = soft_cls.size() - 1; i >= 0; i--) 
-            for (int j = soft_cls[i].snd->size() - 1; j >= 0; j--) 
-                sat_solver.setFrozen(var((*soft_cls[i].snd)[j]), true);
         Int sum = 0;
         int ml_opt = 0, i = 0;
         vec<weight_t> sortedCs;
@@ -644,23 +653,42 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 #ifdef USE_SCIP
     if (ipamir_used) opt_finder.store(OPT_NONE);
     extern bool opt_use_scip_slvr;
+    extern double opt_scip_delay;
     ScipSolver scip_solver;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
-    if (opt_use_scip_slvr && UB_goalval * goal_gcd < Int(uint64_t(1) << std::numeric_limits<double>::digits - 3) && l_True == 
+    if (opt_use_scip_slvr && UB_goalval * goal_gcd < Int(uint64_t(1) << std::numeric_limits<double>::digits - 4) && l_True == 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls, scip_solver)) {
         if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
         return;
     }
+#ifdef CADICAL
+    if (scip_solver.must_be_started) sat_solver.limitTime(opt_scip_delay + 1);
+#else
+    if (scip_solver.must_be_started) limitTime(start_solving_cpu + opt_scip_delay + 1);
+#endif
 #endif
     Minisat::vec<Lit> sat_conflicts;
     lbool status;
     do { // a loop to process GBMO splitting points
     while (1) {
 #ifdef USE_SCIP
-      extern double opt_scip_delay;
       if (scip_solver.must_be_started && cpuTime() >= start_solving_cpu + opt_scip_delay) {
         scip_solver.must_be_started = false;
-        if (opt_verbosity >= 1) reportf("SCIP started in the same thread\n");
+#ifdef CADICAL
+        if (opt_cpu_lim > cpuTime())
+            sat_solver.limitTime(opt_cpu_lim - (opt_cpu_lim == INT32_MAX ? 0 : cpuTime()));
+        else break;
+#else
+        if (opt_cpu_lim > cpuTime()) limitTime(opt_cpu_lim); else break;
+#endif
+        sat_solver.clearInterrupt(); 
+        if (asynch_interrupt) 
+            if (cpu_interrupt) asynch_interrupt = cpu_interrupt = false; else break;
+        if (opt_verbosity >= 1) {
+            char *t1 = toString(LB_goalvalue * goal_gcd), *t2 = toString(best_goalvalue * goal_gcd);
+            reportf("SCIP started in the same thread with lower and upper bounds: [%s, %s]\n", t1, t2);
+            xfree(t1); xfree(t2);
+        }
         if (l_True == scip_solve_async(scip_solver.scip, scip_solver.vars, scip_solver.model, this, scip_solver.obj_offset)) {
             if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
             return;
@@ -694,7 +722,19 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (ipamir_used && termCallback != nullptr && 0 != termCallback(termCallbackState)) {
             asynch_interrupt = true; break;
         }
-        if (!ipamir_used && asynch_interrupt) { reportf("*** Interrupted ***\n"); break; }
+        if (!ipamir_used && asynch_interrupt && !cpu_interrupt) { 
+            reportf("*** Interrupted ***\n"); 
+            break;
+        }
+#ifdef USE_SCIP
+        if (scip_solver.must_be_started) {
+            if (asynch_interrupt && cpu_interrupt) {
+                sat_solver.clearInterrupt();
+                asynch_interrupt = cpu_interrupt = false; limitTime(opt_cpu_lim);
+            }
+            continue;
+        }
+#endif
         if (opt_minimization == 1 && opt_to_bin_search && sat_solver.conflicts >= opt_unsat_conflicts) goto SwitchSearchMethod;
       } else if (status == l_True) { // SAT returned
         if (opt_minimization == 1 && opt_delay_init_constraints) {

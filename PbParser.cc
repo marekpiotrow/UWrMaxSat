@@ -308,7 +308,7 @@ static void parse_p_line(B& in, S& solver, bool& wcnf_format, Int& hard_bound)
     if (!opt_use_maxpre) {
         solver.allocConstrs(n_vars, n_constrs);
         for (int i = 1; i <= n_vars; i++) {
-            sprintf(&tmp[0], "%d", i);
+            snprintf(&tmp[0], tmp.size(), "%d", i);
             solver.getVar(tmp);
         }
     }
@@ -369,7 +369,7 @@ static bool parse_wcnfs(B& in, S& solver, bool wcnf_format, Int hard_bound)
             {
                 if (solver.declared_n_vars < 0) {
                     vec<char> t(15,0);
-                    while (n_vars < v) { sprintf(&t[0], "%d", ++n_vars); solver.getVar(t); }
+                    while (n_vars < v) { snprintf(&t[0], t.size(), "%d", ++n_vars); solver.getVar(t); }
                 }
                 ps.push(mkLit(solver.getVar(tmp), negated));
             }
@@ -415,7 +415,7 @@ static bool parse_wcnfs(B& in, S& solver, bool wcnf_format, Int hard_bound)
         tmp.clear(); tmp.growTo(16,0);
         for (int i = 0; i < gvars; i++)
             if (solver.soft_cls[i].snd->last() == lit_Undef) {
-                sprintf(&tmp[0],"#%d",i + 1);
+                snprintf(&tmp[0], tmp.size(),"#%d",i + 1);
                 Lit p = mkLit(solver.getVar(tmp), true);
                 solver.soft_cls[i].snd->last() = p;
                 if (!opt_maxsat_msu) gps[i] = p;
@@ -445,7 +445,7 @@ static bool parse_wcnfs(B& in, S& solver, bool wcnf_format, Int hard_bound)
             for (unsigned j = 0; j < clauses[i].size(); j++) {
                 unsigned var = abs(clauses[i][j]);
                 for ( ; maxvar <= var; maxvar++) {
-                    sprintf(&tmp[0],"%d",maxvar);
+                    snprintf(&tmp[0], tmp.size(),"%d",maxvar);
                     solver.getVar(tmp);
                 }
                 ps.push(mkLit(var - 1, clauses[i][j] < 0));
@@ -471,7 +471,7 @@ static bool parse_wcnfs(B& in, S& solver, bool wcnf_format, Int hard_bound)
 #endif
     if (gvars == 0 && !opt_maxsat_msu) {
         tmp.clear(); tmp.growTo(10,0);
-        sprintf(&tmp[0],"#%d",1);
+        snprintf(&tmp[0], tmp.size(),"#%d",1);
         gps.push(mkLit(solver.getVar(tmp)));
         gCs.push(one);
     }

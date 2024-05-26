@@ -98,10 +98,17 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
     bool try_again, obj_limit_applied = false;
     int64_t bound_gap = INT64_MAX;
 
-    if (solver->best_goalvalue < WEIGHT_MAX) {
-        MY_SCIP_CALL(SCIPsetObjlimit(scip, 
-                          SCIP_Real(tolong(solver->best_goalvalue * solver->goal_gcd - obj_offset))));
-        obj_limit_applied = true;
+    {
+        std::lock_guard<std::mutex> lck(optsol_mtx);
+        if (solver->best_goalvalue < WEIGHT_MAX) {
+            MY_SCIP_CALL(SCIPsetObjlimit(scip, 
+                        SCIP_Real(tolong(solver->best_goalvalue * solver->goal_gcd - obj_offset))));
+            obj_limit_applied = true;
+        }
+        if (solver->LB_goalvalue > 0) {
+            MY_SCIP_CALL(SCIPupdateLocalDualbound(scip, SCIP_Real(tolong(solver->LB_goalvalue * solver->goal_gcd - obj_offset))));
+            if (obj_limit_applied) bound_gap = tolong(solver->best_goalvalue - solver->LB_goalvalue);
+        }
     }
     MY_SCIP_CALL(SCIPsetObjIntegral(scip));
     do {
@@ -163,15 +170,20 @@ lbool scip_solve_async(SCIP *scip, std::vector<SCIP_VAR *> vars, std::vector<lbo
                         }
                     std::lock_guard<std::mutex> lck(optsol_mtx);
                     if (opt_finder.load() != OPT_MSAT) {
+                        extern bool opt_satisfiable_out;
                         vec<lbool> opt_model(scip_model.size()); 
                         for (int i = scip_model.size() - 1; i >= 0 ; i--) opt_model[i] = scip_model[i];
                         solver->sat_solver.extendGivenModel(opt_model);
                         solver->best_model.clear();
                         for (int x = 0; x < solver->pb_n_vars; x++) solver->best_model.push(opt_model[x] != l_False);
                         Minisat::vec<Lit> soft_unsat; // Not used in this context
-                        solver->best_goalvalue = (solver->fixed_goalval + evalGoal(solver->soft_cls, solver->best_model, soft_unsat)) * solver->goal_gcd;
-                        char *p;
-                        printf("o %s\n", p=toString(solver->best_goalvalue)); xfree(p);
+                        solver->best_goalvalue = solver->fixed_goalval + evalGoal(solver->soft_cls, solver->best_model, soft_unsat);
+                        char *tmp = toString(solver->best_goalvalue * solver->goal_gcd);
+                        if (opt_satisfiable_out && opt_output_top < 0 && (opt_satlive || opt_verbosity == 0))
+                            printf("o %s\n", tmp), fflush(stdout);
+                        else if (opt_verbosity > 0 || !opt_satisfiable_out && !solver->ipamir_used) 
+                            reportf("%s solution: %s\n", (found_opt == l_True ? "Next" : "Found"), tmp);
+                        xfree(tmp);
                         solver->satisfied = true;
                     }
                 }

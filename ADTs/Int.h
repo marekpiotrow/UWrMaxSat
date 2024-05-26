@@ -95,7 +95,7 @@ public:
     return Int(data + other.data);
     }
 
-    friend char* toString(Int num) { char buf[32]; sprintf(buf, "%lld", num.data); return xstrdup(buf); }   // Caller must free string.
+    friend char* toString(Int num) { char buf[32]; snprintf(buf, sizeof(buf), "%lld", num.data); return xstrdup(buf); }   // Caller must free string.
     friend int   toint   (Int num) { if (num > INT_MAX || num < INT_MIN) throw Exception_IntOverflow(xstrdup("toint")); return (int)num.data; }
     friend int64_t  tolong  (Int num) { if (num > INT64_MAX || num < INT64_MIN) throw Exception_IntOverflow(xstrdup("tolong")); return (long int)num.data; }
     friend uint64_t toulong (Int num) { if (num > UINT64_MAX || num < 0) throw Exception_IntOverflow(xstrdup("toulong")); return (unsigned long int)num.data; }

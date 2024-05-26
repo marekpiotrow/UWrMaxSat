@@ -21,14 +21,29 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define CadicalWrap_h
 
 #include "cadical.hpp"
+#include "signal.hpp"
 #include "mtl/Vec.h"
 #include "core/SolverTypes.h"
+
+extern int opt_cpu_lim;
 
 namespace COMinisatPS {
 
 class SimpSolver {
 public:
     CaDiCaL::Solver *solver;
+
+    class AlarmTerm : public CaDiCaL::Handler, public CaDiCaL::Terminator {
+    public:
+        volatile static bool timesup;
+
+        // Handler interface.
+        void catch_signal (int ) { }
+        void catch_alarm () { timesup = true; }
+        // Terminator interface.
+        bool terminate() { return timesup; }
+    } alarm_term;
+
 private:
     int nvars, nclauses, old_verbosity;
 
@@ -45,8 +60,6 @@ private:
         bool terminate () { return function == nullptr ? false : function(state); }
     } terminator;
 
-
-
 public:
     vec<Lit> conflict;
     int verbosity;
@@ -54,9 +67,22 @@ public:
 
     SimpSolver() : nvars(0), nclauses(0), conflicts(0) {
         solver = new CaDiCaL::Solver;
+        limitTime(opt_cpu_lim);
         verbosity = old_verbosity = solver->get("verbose");
     }
     ~SimpSolver() { delete solver; }
+
+    void limitTime(int time_limit) {
+        alarm_term.timesup = false;
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
+        CaDiCaL::Signal::reset_alarm();
+        if (time_limit != INT32_MAX) {
+            CaDiCaL::Signal::alarm(time_limit);
+            CaDiCaL::Signal::set(&alarm_term);
+            solver->connect_terminator(&alarm_term);
+        }
+#endif
+    }
 
     void setTermCallback(void * state, int (*terminate)(void *)) {
         terminator.state = state; terminator.function = terminate;
@@ -91,7 +117,7 @@ public:
         nclauses++; return true; }
     bool addClause_(vec<Lit>& cl) { return addClause(cl); }
 
-    bool okay() { return solver->state() & CaDiCaL::VALID; }
+    bool okay() { return ! solver->inconsistent(); }
 
     void interrupt() { solver->terminate(); }
     void clearInterrupt() { }

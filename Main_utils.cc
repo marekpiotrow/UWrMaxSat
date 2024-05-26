@@ -270,15 +270,15 @@ void handlerOutputResult(const PbSolver& S, bool optimum = true)
                 if (opt_bin_model_out) {
                     buf[lst++] = ' ';
                     for (int i = 1; i < bmodel.size(); i++) {
-                        if (lst + 3 >= BUF_SIZE) { 
-                            buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; buf[1] = ' '; lst = 2; 
+                        if (lst + 4 >= BUF_SIZE) { 
+                            buf[lst++] = ' '; buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; buf[1] = ' '; lst = 2; 
                         }
                         buf[lst++] = (bmodel[i]? '1' : '0');
                     }
                 } else
                     for (unsigned i = 0; i < model.size(); i++) {
-                        if (lst + 15 >= BUF_SIZE) { 
-                            buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; lst = 1; 
+                        if (lst + 16 >= BUF_SIZE) { 
+                            buf[lst++] = ' '; buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; lst = 1; 
                         }
                         buf[lst++] = ' ';
                         if (model[i] < 0) { buf[lst++] = '-'; model[i] = -model[i]; }
@@ -295,8 +295,8 @@ void handlerOutputResult(const PbSolver& S, bool optimum = true)
             if (opt_bin_model_out) {
                 buf[lst++] = ' ';
                 for (int i = 0; i < S.declared_n_vars; i++) {
-                    if (lst + 3 >= BUF_SIZE) { 
-                        buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; buf[1] = ' '; lst = 2; 
+                    if (lst + 4 >= BUF_SIZE) { 
+                       buf[lst++] = ' '; buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; buf[1] = ' '; lst = 2; 
                     }
                     buf[lst++] = (S.best_model[i]? '1' : '0');
                 }
@@ -304,8 +304,8 @@ void handlerOutputResult(const PbSolver& S, bool optimum = true)
                 for (int i = 0; i < S.best_model.size(); i++)
                     if (S.index2name[i][0] != '#') {
                         int sz = strlen(S.index2name[i]);
-                        if (lst + sz + 2 >= BUF_SIZE) { 
-                            buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; lst = 1; 
+                        if (lst + sz + 3 >= BUF_SIZE) { 
+                            buf[lst++] = ' '; buf[lst++] = '\n'; lst = write(1, buf, lst); buf[0] = 'v'; lst = 1; 
                         }
                         buf[lst++] = ' ';
                         if (!S.best_model[i]) buf[lst++] = '-';
@@ -455,6 +455,7 @@ static cchar* doc =
     "SCIP (a mixed integer programming solver, see https://www.scipopt.org) specific options:\n"
     "  -no-scip      Do not use SCIP solver. (The default setting is to use it for small instances.)\n"
     "  -scip-cpu=    Timeout in seconds for SCIP solver. Zero - no limit (default).\n"
+    "  -scip-cpu-add= Time in seconds for SCIP solver to increase timeout if the gap <= 10%%. [def: %gs]\n"
     "  -no-par       Do not run SCIP solver in a separate thread. Timeout is changed to %gs if not set by user. \n" 
     "  -force-scip   Force to run SCIP solver. (The default setting is to use it for small instances.)\n"
     "  -scip-delay=  Time in seconds to delay SCIP start if it has to use the same thread. Zero - no delay (default)\n"
@@ -499,6 +500,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
                         , opt_maxpre_str
 #endif
 #ifdef USE_SCIP
+                        , opt_scip_cpu_add
                         , opt_scip_cpu_default
 #endif
                         ), exit(0);
@@ -556,6 +558,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
             else if (oneof(arg, "no-scip"   )) opt_use_scip_slvr = false;
             else if (oneof(arg, "force-scip")) opt_force_scip    = true;
             else if (strncmp(arg, "-scip-cpu=",  10) == 0) opt_scip_cpu  = atoi(arg+10);
+            else if (strncmp(arg, "-scip-cpu-add=",14) == 0) opt_scip_cpu_add  = atoi(arg+14);
             else if (strncmp(arg, "-scip-delay=",  12) == 0) opt_scip_delay  = atoi(arg+12);
             else if (oneof(arg, "no-par"    )) opt_scip_parallel = false, opt_scip_cpu = (opt_scip_cpu == 0 ? opt_scip_cpu_default : opt_scip_cpu);
 #endif
@@ -594,9 +597,13 @@ static void parseOptions(int argc, char** argv, bool check_files)
 
     if (args.size() == 0 && check_files)
         fprintf(stderr, doc, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
-                        opt_base_max, opt_unsat_cpu
+                        opt_base_max, opt_unsat_conflicts
 #ifdef MAXPRE
                         , opt_maxpre_str
+#endif
+#ifdef USE_SCIP
+                        , opt_scip_cpu_add
+                        , opt_scip_cpu_default
 #endif
                         ), exit(0);
 #ifdef USE_SCIP
