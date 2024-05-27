@@ -35,6 +35,7 @@ Read a DIMACS file and apply the SAT-solver to it.
 #include "MsSolver.h"
 #include "PbParser.h"
 #include "FEnv.h"
+#include "Main_utils.h"
 
 #ifdef MAXPRE
 #include "preprocessorinterface.hpp"
@@ -388,7 +389,7 @@ PbSolver::solve_Command convert(Command cmd) {
 
 static cchar* doc =
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
-    "UWrMaxSat 1.5 -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-2024)\n" 
+    "UWrMaxSat %s -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-2024)\n" 
     "and PB solver by Marek Piotrów and Michał Karpiński (2018) -- an extension of\n"
     "MiniSat+ 1.1, based on MiniSat 2.2.0  -- (C) Niklas Een, Niklas Sorensson (2012)\n"
     "with COMiniSatPS by Chanseok Oh (2016) as the SAT solver\n"
@@ -494,7 +495,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
         char*   arg = argv[i];
         if (arg[0] == '-'){
             if (oneof(arg,"h,help")) 
-                fprintf(stderr, doc, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
+                fprintf(stderr, doc, UWR_VERSION, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
                         opt_base_max, opt_unsat_conflicts
 #ifdef MAXPRE
                         , opt_maxpre_str
@@ -596,7 +597,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
     }
 
     if (args.size() == 0 && check_files)
-        fprintf(stderr, doc, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
+        fprintf(stderr, doc, UWR_VERSION, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
                         opt_base_max, opt_unsat_conflicts
 #ifdef MAXPRE
                         , opt_maxpre_str

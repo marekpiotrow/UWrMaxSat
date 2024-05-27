@@ -21,6 +21,10 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef MAIN_UTILS_H
 #define MAIN_UTILS_H
 
+#ifndef UWR_VERSION
+#define UWR_VERSION "1.6.0"
+#endif
+
 extern bool   opt_model_out;
 extern bool   opt_bin_model_out;
 extern bool   opt_satisfiable_out;
@@ -32,7 +36,7 @@ extern bool   opt_use_maxpre;
 extern int    exit_code;
 
 #ifdef MAXPRE
-extern char  *opt_maxpre_str;
+extern char   opt_maxpre_str[];
 extern int    opt_maxpre_time;
 extern int    opt_maxpre_skip;
 #endif

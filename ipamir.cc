@@ -21,11 +21,6 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 IN THE SOFTWARE.
 ***********************************************/
 
-/**
- * Return the name and the version of the incremental SAT
- * solving library.
- */
-
 #include "MsSolver.h"
 #include "FEnv.h"
 #include "Main_utils.h"
@@ -72,7 +67,7 @@ extern "C" {
  */
 IPAMIR_API const char * ipamir_signature ()
 {
-    static char tmp[200] = "UWrMaxSat";
+    static char tmp[200] = "UWrMaxSat" UWR_VERSION;
     return tmp;
 }
 
