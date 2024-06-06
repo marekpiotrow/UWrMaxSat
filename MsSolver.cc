@@ -654,7 +654,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     if (ipamir_used) opt_finder.store(OPT_NONE);
     extern bool opt_use_scip_slvr;
     extern double opt_scip_delay;
-    ScipSolver scip_solver;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
     if (opt_use_scip_slvr && UB_goalval * goal_gcd < Int(uint64_t(1) << std::numeric_limits<double>::digits - 4) && l_True == 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls, scip_solver)) {
@@ -689,7 +688,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             reportf("SCIP started in the same thread with lower and upper bounds: [%s, %s]\n", t1, t2);
             xfree(t1); xfree(t2);
         }
-        if (l_True == scip_solve_async(scip_solver.scip, scip_solver.vars, scip_solver.model, this, scip_solver.obj_offset)) {
+        if (l_True == scip_solve_async(&scip_solver, this)) {
             if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
             return;
         }
@@ -1236,9 +1235,12 @@ SwitchSearchMethod:
     }
     if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
 #ifdef USE_SCIP
+    extern bool opt_scip_parallel;
     char test = OPT_NONE;
     bool MSAT_found_opt = (!satisfied || satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX)
                           && opt_finder.compare_exchange_strong(test, OPT_MSAT);
+    if (ipamir_used && opt_use_scip_slvr && opt_scip_parallel  && MSAT_found_opt)
+        scip_interrupt_solve(scip_solver);
 #else
     bool MSAT_found_opt = !satisfied || satisfied && !asynch_interrupt && cmd != sc_FirstSolution && best_goalvalue < Int_MAX;
 #endif

@@ -28,6 +28,7 @@ IN THE SOFTWARE.
 #include "ipamir.h"
 
 extern bool opt_satisfiable_out;
+extern time_t wall_clock_time;
 
 struct MySolver {
     ~MySolver()
@@ -45,8 +46,9 @@ struct MySolver {
         opt_convert = opt_convert_goal = ct_Sorters; opt_seq_thres = 4;
         opt_satisfiable_out = false;
 #ifdef USE_SCIP
-        opt_use_scip_slvr = true; opt_scip_parallel = false;
+        opt_use_scip_slvr = true; opt_scip_parallel = true;
         opt_scip_cpu = opt_scip_cpu_default; // = 400s
+        time(&wall_clock_time);
 #endif
         setOptions(0, NULL, false); // read UWrMaxSat options from the UWRFLAGS env variable
     }
