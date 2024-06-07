@@ -279,6 +279,7 @@ clean_and_return:
 
     MY_SCIP_CALL(SCIPfree(&scip_solver->scip));
     scip_solver->scip = nullptr;
+    if (solver->ipamir_used && found_opt == l_True) solver->sat_solver.interrupt();
     return found_opt;
 }
 
@@ -423,14 +424,14 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     scip_solver.vars = std::move(vars);
     scip_solver.model = std::move(scip_model);
     scip_solver.obj_offset = obj_offset;
-    if (opt_scip_parallel) {
-        scip_solver.asynch_result = std::async(std::launch::async, scip_solve_async, &scip_solver, this);
-        return l_Undef;
-    } else if (opt_scip_delay > 0) {
+    if (opt_scip_delay > 0) {
         scip_solver.must_be_started = true;
         if (!ipamir_used || opt_verbosity > 0) reportf("SCIP start delayed for at least %.0fs\n", opt_scip_delay);  
         return l_Undef;
-    } else
+    } else if (opt_scip_parallel) {
+        scip_solver.asynch_result = std::async(std::launch::async, scip_solve_async, &scip_solver, this);
+        return l_Undef;
+    } else 
         return scip_solve_async(&scip_solver, this);
 }
 

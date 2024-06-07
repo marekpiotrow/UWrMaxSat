@@ -668,6 +668,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 #endif
     Minisat::vec<Lit> sat_conflicts;
     lbool status;
+    extern bool opt_scip_parallel;
     do { // a loop to process GBMO splitting points
     while (1) {
 #ifdef USE_SCIP
@@ -685,10 +686,12 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             if (cpu_interrupt) asynch_interrupt = cpu_interrupt = false; else break;
         if (opt_verbosity >= 1) {
             char *t1 = toString(LB_goalvalue * goal_gcd), *t2 = toString(best_goalvalue * goal_gcd);
-            reportf("SCIP started in the same thread with lower and upper bounds: [%s, %s]\n", t1, t2);
+            reportf("SCIP started with lower and upper bounds: [%s, %s]\n", t1, t2);
             xfree(t1); xfree(t2);
         }
-        if (l_True == scip_solve_async(&scip_solver, this)) {
+        if (opt_scip_parallel)
+            scip_solver.asynch_result = std::async(std::launch::async, scip_solve_async, &scip_solver, this);
+        else if (l_True == scip_solve_async(&scip_solver, this)) {
             if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
             return;
         }
@@ -1275,6 +1278,7 @@ SwitchSearchMethod:
             && opt_finder != OPT_SCIP 
 #endif
             ) pb_solver->printStats();
+    if (ipamir_used) sat_solver.clearInterrupt();
 }
 
 int lower_bound(vec<Lit>& set, Lit elem)

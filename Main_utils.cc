@@ -459,7 +459,7 @@ static cchar* doc =
     "  -scip-cpu-add= Time in seconds for SCIP solver to increase timeout if the gap <= 10%%. [def: %gs]\n"
     "  -no-par       Do not run SCIP solver in a separate thread. Timeout is changed to %gs if not set by user. \n" 
     "  -force-scip   Force to run SCIP solver. (The default setting is to use it for small instances.)\n"
-    "  -scip-delay=  Time in seconds to delay SCIP start if it has to use the same thread. Zero - no delay (default)\n"
+    "  -scip-delay=  Time in seconds to delay SCIP start. Zero - no delay (default)\n"
 #endif
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
 ;
