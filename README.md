@@ -6,6 +6,8 @@ Since the version 1.3 you can merge the power of this solver with the [SCIP solv
 
 Since the version 1.4 you can use the solver as a library with the IPAMIR interface (see [IPAMIR](https://maxsat-evaluations.github.io/2022/incremental.html)). Some UWrMaxSat parameters can be set in the environment variable UWRFLAGS, for example, UWRFLAGS="-v1 -scip-cpu=120". It works both with the library and with the standalone application.
 
+Since version 1.6.1 the IPAMIR library runs the SCIP solver in a separate thread in the similar way as the standalone application. This default behaviour can be changed by setting UWRFLAGS="-no-par".
+
 ================================================================================
 ### Quick Install
 
