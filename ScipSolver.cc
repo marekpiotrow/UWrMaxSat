@@ -103,6 +103,7 @@ SCIP_DECL_MESSAGEINFO(uwrMessageInfo) { (void)(messagehdlr); uwrLogMessage(file,
 lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
 {
     extern double opt_scip_cpu, opt_scip_cpu_add;
+    extern Int opt_lower_bound;
     lbool found_opt = l_Undef;
     SCIP_STATUS status;
     int64_t best_value = INT64_MAX;
@@ -117,9 +118,10 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
               SCIP_Real(tolong(solver->best_goalvalue * solver->goal_gcd - scip_solver->obj_offset))));
             obj_limit_applied = true;
         }
-        if (solver->LB_goalvalue > 0) {
-            MY_SCIP_CALL(SCIPupdateLocalDualbound(scip_solver->scip, SCIP_Real(tolong(solver->LB_goalvalue * solver->goal_gcd - scip_solver->obj_offset))));
-            if (obj_limit_applied) bound_gap = tolong(solver->best_goalvalue - solver->LB_goalvalue);
+        if (solver->LB_goalvalue > 0 || solver->scip_foundLB) {
+            Int LB = (opt_lower_bound != Int_MIN ? max(solver->LB_goalvalue, opt_lower_bound) : solver->LB_goalvalue); 
+            MY_SCIP_CALL(SCIPupdateLocalDualbound(scip_solver->scip, SCIP_Real(tolong(LB * solver->goal_gcd - scip_solver->obj_offset))));
+            if (obj_limit_applied) bound_gap = tolong(solver->best_goalvalue - LB);
         }
     }
     MY_SCIP_CALL(SCIPsetObjIntegral(scip_solver->scip));

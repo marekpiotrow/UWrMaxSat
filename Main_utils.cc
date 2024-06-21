@@ -68,6 +68,7 @@ double   opt_bdd_thres     = 10;
 double   opt_sort_thres    = 200;
 double   opt_goal_bias     = 10;
 Int      opt_goal          = Int_MAX;
+Int      opt_lower_bound   = Int_MIN;
 Command  opt_command       = cmd_Minimize;
 bool     opt_branch_pbvars = false;
 int      opt_polarity_sug  = 1;
@@ -528,6 +529,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
             else if (strncmp(arg, "-sort-thres=", 12) == 0) opt_sort_thres = atof(arg+12);
             else if (strncmp(arg, "-goal-bias=",  11) == 0) opt_goal_bias  = atof(arg+11);
             else if (strncmp(arg, "-goal="     ,   6) == 0) opt_goal       = Int((int64_t)atol(arg+ 6));  // <<== real bignum parsing here
+            else if (strncmp(arg, "-lower-bound=",13) == 0) opt_lower_bound= Int((int64_t)atol(arg+13));
             else if (strncmp(arg, "-cnf="      ,   5) == 0) opt_cnf        = arg + 5;
             else if (strncmp(arg, "-base-max=",   10) == 0) opt_base_max   = atoi(arg+10); 
             else if (strncmp(arg, "-bin-split=",  11) == 0) opt_bin_percent= atoi(arg+11); 

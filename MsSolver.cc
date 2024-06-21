@@ -492,7 +492,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 #ifdef SIGXCPU
     signal(SIGXCPU,SIGINT_interrupt);
 #endif
-
+    extern Int opt_lower_bound;
+    if (opt_lower_bound != Int_MIN) opt_lower_bound /= goal_gcd;
     Map<int,int> assump_map(-1);
     vec<Linear*> saved_constrs;
     vec<Lit> goal_ps;
@@ -685,7 +686,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (asynch_interrupt) 
             if (cpu_interrupt) asynch_interrupt = cpu_interrupt = false; else break;
         if (opt_verbosity >= 1) {
-            char *t1 = toString(LB_goalvalue * goal_gcd), *t2 = toString(best_goalvalue * goal_gcd);
+            char *t1 = toString((opt_lower_bound != Int_MIN ? max(opt_lower_bound, LB_goalvalue) : LB_goalvalue) * goal_gcd ),
+                 *t2 = toString(best_goalvalue * goal_gcd);
             reportf("SCIP started with lower and upper bounds: [%s, %s]\n", t1, t2);
             xfree(t1); xfree(t2);
         }
@@ -783,6 +785,14 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                     if (opt_finder != OPT_SCIP) {
 #endif                
                         best_goalvalue = goalvalue, model.moveTo(best_model);
+                        if (best_goalvalue < opt_lower_bound) {
+                            if (opt_verbosity > 0) {
+                                char* tmp = toString(opt_lower_bound * goal_gcd);
+                                reportf("Wrong lower bound given in the option: -lower-bound=%s\n", tmp);
+                                xfree(tmp);
+                            }
+                            opt_lower_bound = Int_MIN;
+                        }
                         if (gbmo_remain_goal_ps.size() > 0)
                             gbmo_goalval = evalPsCs(gbmo_remain_goal_ps, gbmo_remain_goal_Cs, best_model, am1_rels);
 #ifdef USE_SCIP
@@ -796,7 +806,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                     reportf("%s solution: %s\n", (optimum_found ? "Next" : "Found"), tmp);
                 xfree(tmp);
                 last_soft_in_best_model = last_soft_added_to_sat;
-            } else model.clear(); 
+            } else model.clear();
             if (best_goalvalue < UB_goalvalue && opt_output_top < 0) UB_goalvalue = best_goalvalue;
             else if (opt_output_top > 1) {
                 while (top_UB_stack.size() > 0 && top_UB_stack.last() < best_goalvalue) top_UB_stack.pop();
@@ -806,7 +816,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                     if (bound < UB_goalvalue) UB_goalvalue = bound;
                 }
             }
-            if (cmd == sc_FirstSolution || (opt_minimization == 1 || UB_goalvalue == LB_goalvalue) &&
+            if (cmd == sc_FirstSolution ||
+                    (opt_minimization == 1 || UB_goalvalue == LB_goalvalue || UB_goalvalue == scip_LB) &&
                                            sorted_assump_Cs.size() == 0 && delayed_assump.empty())
                 if (opt_minimization == 1 && opt_output_top > 0) {
                     outputResult(*this, false);
@@ -894,6 +905,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                     mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars)) : assump_lit;
                 Int lb = (scip_foundLB ? max(LB_goalvalue, scip_LB) : LB_goalvalue), 
                     ub = (scip_foundUB ? min(best_goalvalue, scip_UB) : best_goalvalue);
+                if (lb < opt_lower_bound) lb = opt_lower_bound;
                 try_lessthan = (lb*(100-opt_bin_percent) + ub*(opt_bin_percent))/100;
             }
             Int goal_diff = harden_goalval+fixed_goalval + gbmo_goalval;
@@ -1008,7 +1020,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         } else if (opt_minimization == 1) LB_goalvalue = next_sum(LB_goalvalue - fixed_goalval - harden_goalval, goal_Cs) + fixed_goalval + harden_goalval; 
         else LB_goalvalue = try_lessthan;
 
-        if ((LB_goalvalue == best_goalvalue ||
+        if ((LB_goalvalue == best_goalvalue || scip_LB == best_goalvalue ||
                 satisfied && best_goalvalue - LB_goalvalue < gbmo_remain_weight) && 
                 (opt_minimization != 1 || last_soft_in_best_model <= last_soft_in_queue)) {
             if (opt_minimization >= 1 && opt_verbosity >= 2) {
@@ -1030,6 +1042,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars)) : assump_lit;
             Int lb = (scip_foundLB ? max(LB_goalvalue, scip_LB) : LB_goalvalue), 
                 ub = (scip_foundUB ? min(best_goalvalue, scip_UB) : best_goalvalue);
+            if (lb < opt_lower_bound) lb = opt_lower_bound;
             try_lessthan = (lb*(100-opt_bin_percent) + ub*(opt_bin_percent))/100;
 	}
         if (!addConstr(goal_ps, goal_Cs, try_lessthan - goal_diff, -2, assump_lit))
