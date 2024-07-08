@@ -100,7 +100,11 @@ public:
     int  nFreeVars() const { return nvars; }
     int  nClauses() const { return nclauses; }
     void setPolarity(Var, bool) { /* unsupported */ }
-    void setFrozen(Var , bool ) { /* not needed */ }
+    void setFrozen(Var p, bool set) {
+        int x = lit2val(mkLit(p));
+        if (set) solver->freeze(x);
+        else if (solver->frozen(x)) solver->melt(x);
+    }
 
     bool addClause(const vec<Lit>& cl) {
         for (int i = 0; i < cl.size(); i++) solver->add(lit2val(cl[i]));
