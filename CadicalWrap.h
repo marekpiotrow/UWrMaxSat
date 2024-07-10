@@ -46,6 +46,7 @@ public:
 
 private:
     int nvars, nclauses, old_verbosity;
+    vec<int> model;
 
     int lit2val(Lit p) {
         return sign(p) ? -var(p)-1 : var(p)+1;
@@ -133,8 +134,13 @@ public:
         if (verbosity < 0) verbosity = 0; else if (verbosity > 3) verbosity = 3;
         if (verbosity != old_verbosity) solver->set("verbose", old_verbosity = verbosity);
 
+        model.clear();
         int ret = solver->solve();
         conflicts = solver->conflicts();
+        if (ret == 10) {
+            model.growTo(nvars);
+            for (int v = 0 ; v < nvars; v++) model[v] = solver->val(v + 1);
+        }
         return ret == 10 ? l_True : (ret == 20 ? l_False : l_Undef);
     }
     bool solve() {
@@ -175,7 +181,7 @@ public:
     }
 
     lbool modelValue(Var v) const {
-        int val = solver->val(v+1);
+        int val = (v < model.size() ? model[v] : 0);
         return val == 0 ? l_Undef : (val > 0 ? l_True : l_False);
     }
     lbool modelValue(Lit p) const {

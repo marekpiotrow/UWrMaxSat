@@ -60,6 +60,9 @@ int main(int argc, char** argv)
     pb_solver = new MsSolver(true, opt_preprocess);
     signal(SIGINT , SIGINT_handler);
     signal(SIGTERM, SIGTERM_handler);
+    signal(SIGSEGV, SIGTERM_handler); 
+    signal(ENOMEM,  SIGTERM_handler); 
+    signal(SIGABRT, SIGTERM_handler);
 
     // Set command from 'PBSATISFIABILITYONLY':
     char* value = getenv("PBSATISFIABILITYONLY");
@@ -76,9 +79,6 @@ int main(int argc, char** argv)
     }
     if (opt_mem_lim != INT32_MAX) {
         reportf("Setting memory limit to %dMB.\n",opt_mem_lim);
-        signal(SIGSEGV, SIGTERM_handler); 
-        signal(ENOMEM, SIGTERM_handler); 
-        signal(SIGABRT, SIGTERM_handler);
         limitMemory(opt_mem_lim);
     }
     increase_stack_size(256); // to at least 256MB - M. Piotrow 16.10.2017

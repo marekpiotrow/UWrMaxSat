@@ -655,7 +655,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     extern bool opt_use_scip_slvr;
     extern double opt_scip_delay;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
-    if (opt_use_scip_slvr && UB_goalval * goal_gcd < Int(uint64_t(1) << std::numeric_limits<double>::digits - 4) && l_True == 
+    Int weight_sum = (UB_goalval - (fixed_goalval >= 0 ? 0 : fixed_goalval * 2)) * goal_gcd; 
+    if (opt_use_scip_slvr && weight_sum < Int(uint64_t(1) << std::numeric_limits<double>::digits - 4) && l_True == 
       scip_solve(&assump_ps, &assump_Cs, &delayed_assump, weighted_instance, sat_orig_vars, sat_orig_cls, scip_solver)) {
         if (ipamir_used) reset_soft_cls(soft_cls, fixed_soft_cls, modified_soft_cls, goal_gcd);
         return;
