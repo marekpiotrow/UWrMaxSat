@@ -454,6 +454,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             for (Var x = 0; x < pb_n_vars; x++)
                 assert(sat_solver.modelValue(x) != l_Undef),
                     best_model.push(sat_solver.modelValue(x) == l_True);
+
         }
         if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
             asynch_interrupt = true;
@@ -461,6 +462,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             if (!ipamir_used) opt_satisfiable_out = false;
             return;
         } else if (status == l_True) {
+            for (int i = 0; i < soft_cls.size(); i++)
+                if (soft_cls[i].snd->size() > 1)
+                    best_model[var(soft_cls[i].snd->last())] = !sign(soft_cls[i].snd->last());
             Minisat::vec<Lit> soft_unsat;
             best_goalvalue = fixed_goalval + evalGoal(soft_cls, best_model, soft_unsat);
             char* tmp = toString(best_goalvalue);
