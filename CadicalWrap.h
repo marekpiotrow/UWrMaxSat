@@ -85,6 +85,8 @@ public:
             CaDiCaL::Signal::set(&alarm_term);
             solver->connect_terminator(&alarm_term);
         }
+#else
+        (void)limit_time;
 #endif
     }
 

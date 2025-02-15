@@ -26,7 +26,7 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
     cd cadical  
     patch -p1 <../uwrmaxsat/cadical.patch  
     ./configure  
-    make  
+    make cadical  
     cd ../uwrmaxsat  
     cp config.cadical config.mk  
     cd ..  

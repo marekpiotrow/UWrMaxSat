@@ -35,7 +35,7 @@ jobs:
         cd cadical
         patch -p1 <../uwrmaxsat/cadical.patch
         ./configure
-        make
+        make cadical
     - name: build the MaxPre preprocessor
       run: |
         cd ..
