@@ -86,7 +86,7 @@ public:
             solver->connect_terminator(&alarm_term);
         }
 #else
-        (void)limit_time;
+        (void)time_limit;
 #endif
     }
 
