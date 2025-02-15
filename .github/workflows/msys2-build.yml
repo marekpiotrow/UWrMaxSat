@@ -21,6 +21,13 @@ jobs:
         update: true
         install: git make patch unzip mingw-w64-ucrt-x86_64-toolchain mingw-w64-ucrt-x86_64-zlib mingw-w64-ucrt-x86_64-gmp
     - uses: actions/checkout@v4
+    - name: clone COMiniSatPS
+      run: |
+        cd ..
+        git clone https://github.com/marekpiotrow/cominisatps
+        cd cominisatps
+        rm core simp mtl utils
+        ln -s minisat/core minisat/simp minisat/mtl minisat/utils .
     - name: build CaDiCaL
       run: |
         cd ..

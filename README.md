@@ -13,8 +13,13 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
 ================================================================================
 ### Quick Install
 
-1. clone the repository into uwrmaxsat:  
+1. clone the repositories into uwrmaxsat and cominisatps:  
     git clone https://github.com/marekpiotrow/UWrMaxSat uwrmaxsat  
+    git clone https://github.com/marekpiotrow/cominisatps  
+    cd cominisatps  
+    rm core simp mtl utils  
+    ln -s minisat/core minisat/simp minisat/mtl minisat/utils .  
+    cd ..  
 
 2. clone and build the CaDiCaL SAT solver by Armin Biere:  
     git clone https://github.com/arminbiere/cadical  
