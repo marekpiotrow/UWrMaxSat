@@ -116,12 +116,12 @@ void core_minimization(SimpSolver &sat_solver, Minisat::vec<Lit> &mus)
 {
     int last_size = mus.size();
 
-    sat_solver.setConfBudget(1000);
     int verb = sat_solver.verbosity; sat_solver.verbosity = 0;
     for (int i = 0; last_size > 1 && i < last_size; ) {
         Lit p = mus[i];
         for (int j = i+1; j < last_size; j++) mus[j-1] = mus[j];
         mus.pop();
+        sat_solver.setConfBudget(500);
         if (pb_solver->satSolveLimited(mus) != l_False) {
             mus.push();
             for (int j = last_size - 1; j > i; j--) mus[j] = mus[j-1];
@@ -1342,12 +1342,13 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
         for (int i = old_size, j = 0; i < new_size; i++, j++)
             global_assumptions[i] = harden_assump[j];
     }
+    sat_solver.startPropagator(assump_ps);
     for (int i = 0; i < assump_ps.size(); i++) {
         if (!is_input_var(assump_ps[i]))
             if (ipamir_used) continue; else break;
         Minisat::vec<Lit> props;
         Lit assump = assump_ps[i];
-        if (sat_solver.prop_check(assump, props, global_assumptions))
+        if (sat_solver.impliedObservedLits(assump, props, global_assumptions))
             for (int l, j = 0; j < props.size(); j++) {
                 if ((l = Sort::bin_search(assump_ps,  ~props[j])) >= 0 && is_input_var(assump_ps[l])) {
                     if (!conns.has(assump)) conns.set(assump,new vec<Lit>());
@@ -1358,6 +1359,7 @@ void MsSolver::preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assum
             }  
         else confl.push(assump);
     }
+    sat_solver.stopPropagator();
     if (harden_assump.size() > 0) global_assumptions.shrink(harden_assump.size()); // IPAMIR
     conns.domain(conns_lit);
     if (confl.size() > 0) {

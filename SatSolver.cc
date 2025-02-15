@@ -20,6 +20,8 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 **************************************************************************************************/
 
 #include "SatSolver.h"
+#include "Debug.h"
+#include "Sort.h"
 
 #if !defined(CADICAL) && !defined(CRYPTOMS)
 static Var mapVar(Var x, Minisat::vec<Var>& map, Var& max)
@@ -44,14 +46,18 @@ const Minisat::Clause& ExtSimpSolver::getClause  (int i, bool &is_satisfied) con
 bool ExtSimpSolver::reduceProblem()
 {
     bool res = true;
-#if !defined(CADICAL) && !defined(CRYPTOMS)
+#if defined(CADICAL)
+    res = eliminate(false);
+    solver->traverse_witnesses_forward(extendIt);
+    extendIt.elimCls.moveTo(elimClauses);
+#elif !defined(CRYPTOMS)
     if (use_simplification) res = eliminate();
     elimclauses.copyTo(elimClauses);
 #endif
     return res;
 }
 
-#if !defined(CADICAL) && !defined(CRYPTOMS)
+#if !defined(CRYPTOMS)
 void ExtSimpSolver::extendGivenModel(vec<lbool> &model)
 {
     for (int j, i = elimClauses.size()-1; i > 0; i -= j) {
@@ -115,15 +121,63 @@ void ExtSimpSolver::printVarsCls(bool encoding, const vec<Pair<weight_t, Minisat
 }
 
 //=================================================================================================
-// Propagate and check:
-#if defined(CADICAL) || defined(CRYPTOMS)
-bool ExtSimpSolver::prop_check(Lit , Minisat::vec<Lit>& props, const vec<Lit>&, int )
+#if defined(CADICAL)
+void ExtSimpSolver::startPropagator(const Minisat::vec<Lit>& observed)
 {
-    props.clear(); 
+    extPropagator = new LitPropagator();
+    solver->connect_external_propagator(extPropagator);
+    for (int i = 0; i < observed.size(); i++)
+        solver->add_observed_var(abs(lit2val(observed[i])));
+}
+
+void ExtSimpSolver::stopPropagator()
+{
+    solver->disconnect_external_propagator();
+    delete extPropagator;
+    extPropagator = nullptr;
+}
+#else
+void ExtSimpSolver::startPropagator(const Minisat::vec<Lit>&) {}
+void ExtSimpSolver::stopPropagator() {}
+#endif
+
+// Find all implied literals from a given literal lit with respect to given possible assumptions 
+#if defined(CRYPTOMS)
+bool ExtSimpSolver::impliedObservedLits(Lit , Minisat::vec<Lit>& props, const vec<Lit>& , int )
+{
+    // not implemented
+    props.clear();
     return okay();
+
+}
+#elif defined(CADICAL)
+bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumps, int )
+{
+    props.clear();
+    if (!okay()) return false;
+    if (value(lit) != l_Undef) return value(lit) == l_True;
+    for (int i = 0; i < assumps.size(); i++)
+        if (value(assumps[i]) == l_False) return false;
+
+    for (int i = 0; i < assumps.size(); i++)
+        if (value(assumps[i]) != l_True && toInt(assumps[i]) >= 0) solver->assume(lit2val(assumps[i]));
+    solver->assume(lit2val(lit));
+
+    solver->limit ("decisions", 1); // set decision limit to one
+    lbool ret = solveLimited();
+
+    if (ret == l_Undef && extPropagator->dec_level > 1) {
+        for (const int clit : extPropagator->last_trails[1 - extPropagator->dec_level % 2]) {
+            if (clit != 0) {
+                Lit l = mkLit(abs(clit) - 1, clit < 0);
+                if (l != lit) props.push(l);
+            }
+        }
+    }
+    return ret == l_Undef;
 }
 #elif defined(MERGESAT)
-bool ExtSimpSolver::prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int )
+bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int )
 {
     if (value(lit) != l_Undef) return value(lit) == l_True;
 
@@ -150,12 +204,13 @@ bool ExtSimpSolver::prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>
     int c = trail.size();
     if (!ok || (Solver::propagate() != Minisat::CRef_Undef)) noConflict = false;
     else  // collect trail literals
-        while (c < trail.size()) props.push(trail[c++]);
+        for ( ; c < trail.size() ; c++)
+            props.push(trail[c]);
     Solver::cancelUntil(0);
     return noConflict;
 }
 #else
-bool ExtSimpSolver::prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int psaving)
+bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int psaving)
 {
     using Minisat::CRef; using Minisat::CRef_Undef;
     props.clear();
@@ -193,7 +248,8 @@ bool ExtSimpSolver::prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>
     if (confl == CRef_Undef && trail.size() > newTrailRecord) { // copying the result
         int c = newTrailRecord;
         if (trail[c] == lit) c++;
-        while (c < trail.size()) props.push(trail[c++]);
+        for ( ; c < trail.size() ; c++)
+            props.push(trail[c]);
     }
     cancelUntilTrailRecord(); // backtracking
     trailRecord = trailRec;
@@ -220,7 +276,10 @@ bool ExtSimpSolver::prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>
         if (confl == CRef_Undef) { // copying the result
             int c = trail_lim[level];
             if (trail[c] == lit) c++;
-            while (c < trail.size()) props.push(trail[c++]);
+            for ( ; c < trail.size() ; c++)
+                props.push(trail[c]);
+//if (props.size() > 0) { printf("IMPLIED %d literals from %s%d at level %d: ", props.size(), (sign(lit) ? "~" : ""), var(lit), level+1); vec<Lit> ps(props.size()); for(int i=0; i < props.size(); i++) ps[i]=props[i]; Sort::sort(ps); dump(ps); putchar('\n'); }
+;
         }
     }
     Solver::cancelUntil(old_level); // backtracking

@@ -77,34 +77,41 @@ using weight_t = int64_t;
 class ExtSimpSolver: public SimpSolver {
 private:
     Minisat::vec<uint32_t> elimClauses;
-public:
-#if defined(COMINISATPS)
-    ExtSimpSolver(bool print_info = true) { 
-        if (print_info) printf("c Using COMiniSatPS SAT solver by Chanseok Oh (2016)\n"); }
-#elif defined(MERGESAT)
-    ExtSimpSolver(bool print_info = true) { use_ccnr = false; allow_rephasing = false; 
-        if (print_info) printf("c Using MergeSat SAT solver by Norbert Manthey (2022)\n"); }
-#elif defined(CADICAL)
-    ExtSimpSolver(bool print_info = true) { 
-        if (print_info) printf("c Using %s SAT solver by Armin Biere (2022)\n", solver->signature()); }
-#elif defined(GLUCOSE4)
-    ExtSimpSolver(bool print_info = true) { 
-        if (print_info) printf("c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"); }
-#elif defined(CRYPTOMS)
-    ExtSimpSolver(bool print_info = true) { 
-        if (print_info) printf("c Using CryptoMiniSat (ver. 5.8.0) SAT solver by its Authors (2020)\n"); }
-#elif defined(MINISAT)
-    ExtSimpSolver(bool print_info = true) { 
-        if (print_info) printf("c Using MiniSat (ver. 2.2.0) SAT solver by Niklas Een and Niklas Sorensson (2010)\n"); }
+#if defined(CADICAL)
+    LitPropagator *extPropagator;
 #endif
+public:
+    ExtSimpSolver(bool print_info = true)
+#if defined(CADICAL)
+        : extPropagator(nullptr) 
+#endif
+    { 
+        if (print_info) printf(
+#if defined(COMINISATPS)
+        "c Using COMiniSatPS SAT solver by Chanseok Oh (2016)\n"
+#elif defined(MERGESAT)
+        "c Using MergeSat SAT solver by Norbert Manthey (2022)\n"
+#elif defined(CADICAL)
+        "c Using %s SAT solver by Armin Biere (2022)\n", solver->signature()
+#elif defined(GLUCOSE4)
+        "c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"
+#elif defined(CRYPTOMS)
+        "c Using CryptoMiniSat (ver. 5.8.0) SAT solver by its Authors (2020)\n"
+#elif defined(MINISAT)
+        "c Using MiniSat (ver. 2.2.0) SAT solver by Niklas Een and Niklas Sorensson (2010)\n"
+#endif
+        );
+    }
 #if !defined(CADICAL) && !defined(CRYPTOMS)
     const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;
 #endif
     bool reduceProblem();
     void extendGivenModel(vec<lbool> &model);
     void printVarsCls(bool encoding = true, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls = NULL, int soft_cls_sz = 0);
+    void startPropagator(const Minisat::vec<Lit>& observed); // needed in CaDiCaL
+    void stopPropagator(); // needed in CaDiCaL
     // compute a list of propagated literals for a given literal lit under some possible global assumptions
-    bool prop_check(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int psaving = 2);
+    bool impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int psaving = 2);
 };
 
 #endif

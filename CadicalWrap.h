@@ -44,13 +44,14 @@ public:
         bool terminate() { return timesup; }
     } alarm_term;
 
-private:
-    int nvars, nclauses, old_verbosity;
-    vec<int> model;
-
     int lit2val(Lit p) {
         return sign(p) ? -var(p)-1 : var(p)+1;
     }
+
+  
+private:
+    int nvars, nclauses, old_verbosity;
+    vec<int> model;
 
     class IpasirTerm : public CaDiCaL::Terminator {
     public:
@@ -70,6 +71,8 @@ public:
         solver = new CaDiCaL::Solver;
         limitTime(opt_cpu_lim);
         verbosity = old_verbosity = solver->get("verbose");
+        solver->prefix("c [CDCL] ");
+        solver->set("walk",0);
     }
     ~SimpSolver() { delete solver; }
 
@@ -91,15 +94,50 @@ public:
         else solver->disconnect_terminator();
     }
 
+    class ExtendIterator : public CaDiCaL::WitnessIterator {
+    public:
+        vec<uint32_t> elimCls;
+    private:
+        static void mkElimClause(vec<uint32_t>& elimclauses, Var v, const std::vector<int> &cl)
+        {
+            size_t first = elimclauses.size();      
+            int v_pos = -1;
+
+            // Copy clause to elimclauses-vector. Remember position where the
+            // variable 'v' occurs:
+            for (size_t i = 0; i < cl.size(); i++) {
+                Lit lit = mkLit(abs(cl[i]) - 1, cl[i] < 0);
+                elimclauses.push(toInt(lit));
+                if (var(lit) == v) v_pos = int(i + first);
+            }
+            assert(v_pos != -1);
+
+            // Swap the first literal with the 'v' literal, so that the literal
+            // containing 'v' will occur first in the clause:
+            uint32_t tmp = elimclauses[v_pos];
+            elimclauses[v_pos] = elimclauses[first];
+            elimclauses[first] = tmp;
+
+            // Store the length of the clause last:
+            elimclauses.push(cl.size());
+        }
+    public:
+        bool witness (const std::vector<int> &cl, const std::vector<int> &witness, uint64_t ) {
+            Lit l = mkLit(abs(witness[0]) - 1, witness[0] < 0);
+            mkElimClause(elimCls,var(l), cl);
+            return true;
+        }
+    } extendIt;
+
     Var newVar(bool polarity = true, bool dvar = true) {
         (void)polarity; (void)dvar;
         Var v = nvars++;
         solver->reserve((int)(v+1));
         return v;
     }
-    int  nVars() const { return nvars; }
-    int  nFreeVars() const { return nvars; }
-    int  nClauses() const { return nclauses; }
+    int  nVars() const { return solver->vars(); }
+    int  nFreeVars() const { return solver->active(); }
+    int  nClauses() const { return solver->irredundant(); }
     void setPolarity(Var, bool) { /* unsupported */ }
     void setFrozen(Var p, bool set) {
         int x = lit2val(mkLit(p));
@@ -196,5 +234,36 @@ public:
 };
 
 }
+
+class LitPropagator : public CaDiCaL::ExternalPropagator {
+public:
+    std::vector<int> last_trails[2];
+    size_t dec_level;
+
+    LitPropagator() : dec_level(0) { }
+
+    ~LitPropagator () { };
+
+    void notify_assignment (const std::vector<int>& lits) {
+        for (int lit : lits) last_trails[dec_level % 2].push_back(lit);
+    };
+    void notify_new_decision_level () { 
+        last_trails[++dec_level % 2].clear(); 
+    };
+
+    void notify_backtrack (size_t new_level) {
+        if (new_level < dec_level) {
+            last_trails[0].clear(); last_trails[1].clear();
+            dec_level = new_level;
+        }
+    };
+
+    bool cb_check_found_model (const std::vector<int> &) { return true; };
+
+    bool cb_has_external_clause (bool& ) { return false; };
+
+    int cb_add_external_clause_lit () { return 0; };
+} ;
+
 
 #endif

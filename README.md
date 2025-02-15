@@ -8,20 +8,23 @@ Since the version 1.4 you can use the solver as a library with the IPAMIR interf
 
 Since version 1.6.1 the IPAMIR library runs the SCIP solver in a separate thread in the similar way as the standalone application. This default behaviour can be changed by setting UWRFLAGS="-no-par".
 
+Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere. 
+
 ================================================================================
 ### Quick Install
 
 1. clone the repository into uwrmaxsat:  
     git clone https://github.com/marekpiotrow/UWrMaxSat uwrmaxsat  
 
-2. build the SAT solver:  
-    * 2.1 get COMiniSatPS by cloning its repository (with modifications used in UWrMaxSat):  
-        git clone https://github.com/marekpiotrow/cominisatps  
-    * 2.2 compile the SAT solver library:  
-        cd cominisatps  
-        rm core simp mtl utils && ln -s minisat/core minisat/simp minisat/mtl minisat/utils .  
-        make lr  
-        cd ..  
+2. clone and build the CaDiCaL SAT solver by Armin Biere:  
+    git clone https://github.com/arminbiere/cadical  
+    cd cadical  
+    patch -p1 <../uwrmaxsat/cadical.patch  
+    ./configure  
+    make  
+    cd ../uwrmaxsat  
+    cp config.cadical config.mk  
+    cd ..  
 
 3. build the MaxPre preprocessor (if you want to use it - see Comments below):  
     * 3.1 clone the MaxPre repository:  
@@ -35,16 +38,16 @@ Since version 1.6.1 the IPAMIR library runs the SCIP solver in a separate thread
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tar zxvf scipoptsuite-8.1.0.tgz  
-        cd scipoptsuite-8.1.0  
+        tar zxvf scipoptsuite-9.2.1.tgz  
+        cd scipoptsuite-9.2.1  
         mkdir build && cd build  
-        cmake -DSHARED=off -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  
+        cmake -DSYM=nauty -DSHARED=off -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  
         cmake --build . --config Release --target libscip libsoplex-pic  
         cd ../..  
 
 5. build the UWrMaxSat solver (release version, statically linked):  
         cd uwrmaxsat  
-        make config  
+        make clean    
         make r
     * 5.1 replace the last command with the following one if you do not want to use MAXPRE and SCIP libraries:  
         MAXPRE= USESCIP=  make r  
@@ -65,26 +68,24 @@ Since version 1.6.1 the IPAMIR library runs the SCIP solver in a separate thread
    - To build a dynamic library you have to compile the static libraries above with the compiler option -fPIC  
      and, in the last step, replace 'make r' with 'make lsh'. The compiler option can be added to the steps above  
      as follows:  
-       (2) The SAT solver library should be made with the command: CXXFLAGS=-fPIC make lr  
+       (2) The SAT solver library should be configured with the command: CXXFLAGS=-fPIC ./configure  
        (3) The MaxPre Makefile should be modified with: sed -i 's/-g/-fPIC -D NDEBUG/' src/Makefile  
        (4) Add the following option to the first line starting with cmake:    
            -DSCIP_COMP_OPTIONS=-fPIC  
 
 ### Other SAT solvers
 
-You can replace COMiniSatPS SAT solver with (A) CaDiCaL by Armin Biere or (B) Glucose 4.1 by Gilles Audemard 
+You can replace CaDiCaL SAT solver with (A) COMiniSatPS by Chanseok Oh or (B) Glucose 4.1 by Gilles Audemard 
 and Laurent Simon or (C) mergesat by Norbert Manthey - see steps 5(A) or 5(B) or 5(C) below.
 
-* **5(A)** clone CaDiCaL and build UWrMaxSat with this SAT solver:  
-    cd ..  
-    git clone https://github.com/arminbiere/cadical  
-    cd cadical  
-    patch -p1 <../uwrmaxsat/cadical.patch  
-    ./configure  
-    make  
+* **5(A)** clone COMiniSatPS and build UWrMaxSat with this SAT solver:  
+    git clone https://github.com/marekpiotrow/cominisatps  
+    cd cominisatps  
+    rm core simp mtl utils && ln -s minisat/core minisat/simp minisat/mtl minisat/utils .  
+    make lr  
     cd ../uwrmaxsat  
-    cp config.cadical config.mk  
-    make clean  
+    cp config.cominisatps config.mk  
+    make clean
     make r
 
 * **5(B)** clone Glucose 4.1 and build UWrMaxSat with this SAT solver:  
@@ -96,9 +97,10 @@ and Laurent Simon or (C) mergesat by Norbert Manthey - see steps 5(A) or 5(B) or
     cd simp  
     MROOT=.. make libr  
     cd ..  
-    mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ../..  
-    cd uwrmaxsat  
+    mkdir minisat ; cd minisat ; ln -s ../core ../simp ../mtl ../utils . ; cd ..  
+    cd ../uwrmaxsat  
     cp config.glucose4 config.mk  
+    make clean  
     make r
 
 * **5(C)** clone mergesat and build UWrMaxSat with this SAT solver:  
