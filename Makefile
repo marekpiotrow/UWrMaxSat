@@ -43,8 +43,8 @@ datarootdir ?= $(prefix)/share
 mandir      ?= $(datarootdir)/man
 
 # Dependencies
-MINISAT_INCLUDE?=-I$(includedir) -I$(includedir)/cominisatps -I../cominisatps
-MINISAT_LIB    ?=-L$(libdir) -L../cominisatps/build/release/lib -lcominisatps
+MINISAT_INCLUDE?=-I$(includedir) -I$(includedir)/minisat -I../cominisatps -I../cadical/src
+MINISAT_LIB    ?=-L$(libdir) -L../cadical/build -lcadical
 MCL_INCLUDE    ?=-I../maxpre/src
 MCL_LIB        ?=-L../maxpre/src/lib -lmaxpre
 
