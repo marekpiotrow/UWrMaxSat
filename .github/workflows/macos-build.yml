@@ -13,14 +13,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: build COMiniSatPS
+    - name: build CaDiCaL
       run: |
         cd ..
-        git clone https://github.com/marekpiotrow/cominisatps
-        cd cominisatps
-        rm core simp mtl utils
-        ln -s minisat/core minisat/simp minisat/mtl minisat/utils .
-        make lr
+        git clone https://github.com/arminbiere/cadical
+        cd cadical
+        ./configure
+        make
     - name: build the MaxPre preprocessor
       run: |
         cd ..
