@@ -29,9 +29,9 @@ else
 endif
 
 # Sets of compile flags for different build types
-MINISATP_REL    ?= -std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D COMINISATPS $(MAXPRE) $(BIGWEIGHTS)
-MINISATP_DEB    ?= -std=c++11 -O0 -D DEBUG  -Wno-strict-aliasing -D COMINISATPS $(MAXPRE) $(BIGWEIGHTS)
-MINISATP_PRF    ?= -std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D COMINISATPS $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_REL    ?= -std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_DEB    ?= -std=c++11 -O0 -D DEBUG  -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_PRF    ?= -std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
 MINISATP_FPIC   ?= -fpic
 
 # GNU Standard Install Variables
@@ -86,8 +86,8 @@ MINISATP_DLIB = libuwrmaxsat.so# Name of MiniSat+ shared library.
 
 # Shared Library Version
 SOMAJOR=1
-SOMINOR=6
-SORELEASE?=.1#   Declare empty to leave out from library file name.
+SOMINOR=7
+SORELEASE?=.0#   Declare empty to leave out from library file name.
 
 MINISATP_CXXFLAGS = -IADTs -include Global.h -include Main.h -D_FILE_OFFSET_BITS=64 -D __STDC_LIMIT_MACROS -Wall -Wno-parentheses -Wextra  $(MCL_INCLUDE) $(MINISAT_INCLUDE)
 MINISATP_LDFLAGS  = -Wall  $(MCL_LIB) $(MINISAT_LIB) -lz -lgmp
