@@ -99,34 +99,12 @@ public:
     class ExtendIterator : public CaDiCaL::WitnessIterator {
     public:
         vec<uint32_t> elimCls;
-    private:
-        static void mkElimClause(vec<uint32_t>& elimclauses, Var v, const std::vector<int> &cl)
-        {
-            size_t first = elimclauses.size();      
-            int v_pos = -1;
-
-            // Copy clause to elimclauses-vector. Remember position where the
-            // variable 'v' occurs:
-            for (size_t i = 0; i < cl.size(); i++) {
-                Lit lit = mkLit(abs(cl[i]) - 1, cl[i] < 0);
-                elimclauses.push(toInt(lit));
-                if (var(lit) == v) v_pos = int(i + first);
-            }
-            assert(v_pos != -1);
-
-            // Swap the first literal with the 'v' literal, so that the literal
-            // containing 'v' will occur first in the clause:
-            uint32_t tmp = elimclauses[v_pos];
-            elimclauses[v_pos] = elimclauses[first];
-            elimclauses[first] = tmp;
-
-            // Store the length of the clause last:
-            elimclauses.push(cl.size());
-        }
     public:
         bool witness (const std::vector<int> &cl, const std::vector<int> &witness, uint64_t ) {
-            Lit l = mkLit(abs(witness[0]) - 1, witness[0] < 0);
-            mkElimClause(elimCls,var(l), cl);
+            for (const int w : witness) elimCls.push(toInt(mkLit(abs(w) - 1, w < 0)));
+            elimCls.push(witness.size());
+            for (const int c : cl) elimCls.push(toInt(mkLit(abs(c) - 1, c < 0)));
+            elimCls.push(cl.size());
             return true;
         }
     } extendIt;

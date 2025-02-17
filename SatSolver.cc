@@ -57,23 +57,41 @@ bool ExtSimpSolver::reduceProblem()
     return res;
 }
 
-#if !defined(CRYPTOMS)
 void ExtSimpSolver::extendGivenModel(vec<lbool> &model)
 {
+#if defined(CADICAL)
+    for (int i = model.size() - 1; i >= 0; i--)
+        if (model[i] == l_Undef) model[i] = l_False;
+    for (int j, i = elimClauses.size()-1; i > 0; i -= j) {
+        Lit x;
+        for (j = elimClauses[i--]; j > 0; j--, i--) { // clause processing
+            x = Minisat::toLit(elimClauses[i]);
+            if ((model[var(x)] ^ sign(x)) == l_True) { // the clause is satisfied
+                i -= elimClauses[i-j] + 1; // skip witnesses
+                goto next;             }
+        }
+        for (j = elimClauses[i--]; j > 0; j--, i--) { // witnesses processing
+            x = Minisat::toLit(elimClauses[i]);
+            if ((model[var(x)] ^ sign(x)) != l_True) //  x is not satisfied
+                model[var(x)] = (model[var(x)] == l_True ? l_False : l_True); // x is flipped
+        }
+next:;
+    }
+#elif !defined(CRYPTOMS)
     for (int j, i = elimClauses.size()-1; i > 0; i -= j) {
         Lit x;
         for (j = elimClauses[i--]; j > 1; j--, i--) {
             x = Minisat::toLit(elimClauses[i]);
-            if ((model[var(x)] ^ sign(x)) != l_False) goto next; // x is no false in the model
+            if ((model[var(x)] ^ sign(x)) != l_False) goto next; // x is not false in the model
         }
         x = Minisat::toLit(elimClauses[i]);
         model[var(x)] = lbool(!sign(x));
 next:;
     }
-}
 #else
-void ExtSimpSolver::extendGivenModel(vec<lbool> &) {}
+    (void)model;
 #endif
+}
 
 void ExtSimpSolver::printVarsCls(bool encoding, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls, int soft_cnt)
 {
