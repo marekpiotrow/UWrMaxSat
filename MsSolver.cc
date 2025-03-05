@@ -64,6 +64,11 @@ void SIGINT_interrupt(int signum) {
 #endif
 }
 
+void set_interrupted(bool cpu_interrupted) {
+    pb_solver->asynch_interrupt = true;
+    if (cpu_interrupted) pb_solver->cpu_interrupt = true;
+}
+
 extern int verbosity;
 
 static void clear_assumptions(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs)
@@ -115,6 +120,7 @@ static
 void core_minimization(SimpSolver &sat_solver, Minisat::vec<Lit> &mus)
 {
     int last_size = mus.size();
+    uint64_t totalConflicts = sat_solver.conflicts + 5000;
 
     int verb = sat_solver.verbosity; sat_solver.verbosity = 0;
     for (int i = 0; last_size > 1 && i < last_size; ) {
@@ -127,6 +133,7 @@ void core_minimization(SimpSolver &sat_solver, Minisat::vec<Lit> &mus)
             for (int j = last_size - 1; j > i; j--) mus[j] = mus[j-1];
             mus[i] = p; i++;
         } else last_size--;
+        if (sat_solver.conflicts > totalConflicts) break;
     }
     sat_solver.budgetOff(); sat_solver.verbosity = verb;
 
@@ -481,6 +488,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     if (goal_gcd != 1) {
         if (LB_goalvalue != Int_MIN) LB_goalvalue /= Int(goal_gcd);
         if (UB_goalvalue != Int_MAX) UB_goalvalue /= Int(goal_gcd);
+        if (best_goalvalue != Int_MAX) best_goalvalue /= Int(goal_gcd);
     }
 
     opt_sort_thres *= opt_goal_bias;
@@ -705,8 +713,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
       sat_conflicts.clear();
       if (use_base_assump) for (int i = 0; i < base_assump.size(); i++) assump_ps.push(base_assump[i]);
       if (opt_minimization == 1 && opt_to_bin_search && opt_unsat_conflicts >= 100000 &&
-                                 sat_solver.conflicts < opt_unsat_conflicts - 500)
-          sat_solver.setConfBudget(opt_unsat_conflicts - sat_solver.conflicts);
+                                 sat_solver.conflicts < opt_unsat_conflicts)
+          sat_solver.setConfBudget(max(opt_unsat_conflicts - sat_solver.conflicts, uint64_t(500)));
       else sat_solver.budgetOff();
       status = 
           base_assump.size() == 1 && base_assump[0] == assump_lit ? l_True :
@@ -729,10 +737,11 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (ipamir_used && termCallback != nullptr && 0 != termCallback(termCallbackState)) {
             asynch_interrupt = true; break;
         }
-        if (!ipamir_used && asynch_interrupt && !cpu_interrupt) { 
-            reportf("*** Interrupted ***\n"); 
-            break;
-        }
+        if (!ipamir_used && asynch_interrupt)
+            if (!cpu_interrupt) {
+                reportf("*** Interrupted ***\n");
+                break;
+            } else if (cpuTime() > opt_cpu_lim) break;
 #ifdef USE_SCIP
         if (scip_solver.must_be_started) {
             if (asynch_interrupt && cpu_interrupt) {
@@ -1173,6 +1182,7 @@ SwitchSearchMethod:
                             cpuTime(), sat_solver.conflicts, goal_ps.size(), assump_ps.size());
                 }
                 opt_minimization = 2;
+                opt_core_minimization = false;
                 if (assump_ps.size() == 0) opt_reuse_sorters = false;
                 if (opt_convert_goal != ct_Undef) opt_convert = opt_convert_goal;
                 if (assump_ps.size() == 0 && gbmo_splitting_weights.size() > 0 &&

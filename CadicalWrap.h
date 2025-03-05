@@ -26,6 +26,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "core/SolverTypes.h"
 
 extern int opt_cpu_lim;
+extern void set_interrupted(bool cpu_interrupted);
 
 namespace COMinisatPS {
 
@@ -38,8 +39,8 @@ public:
         volatile static bool timesup;
 
         // Handler interface.
-        void catch_signal (int ) { }
-        void catch_alarm () { timesup = true; }
+        void catch_signal (int ) { set_interrupted(false); }
+        void catch_alarm () { timesup = true; set_interrupted(true); }
         // Terminator interface.
         bool terminate() { return timesup; }
     } alarm_term;
@@ -84,7 +85,7 @@ public:
             CaDiCaL::Signal::alarm(time_limit);
             CaDiCaL::Signal::set(&alarm_term);
             solver->connect_terminator(&alarm_term);
-        }
+        } else CaDiCaL::Signal::alarm(0);
 #else
         (void)time_limit;
 #endif
@@ -145,7 +146,7 @@ public:
     void interrupt() { solver->terminate(); }
     void clearInterrupt() { }
 
-    void setConfBudget(int x) { solver->limit("conflicts", x); }
+    void setConfBudget(int64_t x) { solver->limit("conflicts", x); }
     void budgetOff() { solver->limit("conflicts", -1); }
 
     lbool solveLimited() {
