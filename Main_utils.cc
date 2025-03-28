@@ -88,6 +88,8 @@ bool     opt_maxsat_prepr  = true;
 bool     opt_use_maxpre    = false;
 bool     opt_reuse_sorters = true;
 uint64_t opt_unsat_conflicts = 5000000;
+int      opt_coremin_cfl   = 5000;
+int      opt_coremin_1cfl  = 500;
 int      exit_code         = 0;
 #ifdef MAXPRE
 char     opt_maxpre_str[80]= "[uvsrgc]";
@@ -443,6 +445,8 @@ static cchar* doc =
     "  -lex-opt      Do Boolean lexicographic optimizations on soft clauses.\n"
     "  -no-bin       Do not switch from UNSAT to SAT/UNSAT search strategy.\n"
     "  -no-ms-pre    Do not preprocess soft clauses (detect unit/am1 cores).\n"
+    "  -coremin-cfl= Maximal number of conflits in a single core minimization.  [def: %d]\n"
+    "  -coremin-1cfl=Max number of conflits of a SAT-solver call in core minim.  [def: %d]\n"
 #ifdef MAXPRE
     "\n"
     "MaxPre (an extended MaxSAT preprocessor by Korhonen) specific options:\n"
@@ -496,7 +500,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
         if (arg[0] == '-'){
             if (oneof(arg,"h,help")) 
                 fprintf(stderr, doc, UWR_VERSION, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
-                        opt_base_max, opt_unsat_conflicts
+                        opt_base_max, opt_unsat_conflicts, opt_coremin_cfl, opt_coremin_1cfl
 #ifdef MAXPRE
                         , opt_maxpre_str
 #endif
@@ -552,6 +556,8 @@ static void parseOptions(int argc, char** argv, bool check_files)
             else if (oneof(arg, "lex-opt"   )) opt_lexicographic = true;
             else if (oneof(arg, "no-bin"    )) opt_to_bin_search = false;
             else if (oneof(arg, "no-ms-pre" )) opt_maxsat_prepr = false;
+            else if (strncmp(arg, "-coremin-cfl=", 13) == 0)  opt_coremin_cfl = atoi(arg+13);
+            else if (strncmp(arg, "-coremin-1cfl=", 14) == 0) opt_coremin_1cfl = atoi(arg+14);
 #ifdef MAXPRE
             else if (oneof(arg, "maxpre" ))    opt_use_maxpre = true;
 #endif
@@ -598,7 +604,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
 
     if (args.size() == 0 && check_files)
         fprintf(stderr, doc, UWR_VERSION, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
-                        opt_base_max, opt_unsat_conflicts
+                        opt_base_max, opt_unsat_conflicts, opt_coremin_cfl, opt_coremin_1cfl
 #ifdef MAXPRE
                         , opt_maxpre_str
 #endif
@@ -632,6 +638,7 @@ void setOptions(int argc, char *argv[], bool check_files)
         for (char *p = std::strtok(opt, " "); p != NULL; cnt++, p = std::strtok(NULL, " ")) options.push(p);
     for (int i = 1; i < argc; i++, cnt++) options.push(argv[i]);
     parseOptions(cnt, &options[0], check_files);
+    for (int i = 0; i < options.size(); i++) options[i] = NULL;
 }
 
 //=================================================================================================

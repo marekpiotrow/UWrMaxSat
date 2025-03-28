@@ -40,18 +40,6 @@ static int_type gcd(int_type small, int_type big) {
     if (big < 0) big = -big;
     return (small == 0) ? big: gcd(big % small, small); }
 
-/*template<typename T>
-static int Sort::bin_search(const vec<T>& seq, const T& elem)
-{
-    int fst = 0, cnt = seq.size();
-    while (cnt > 0) {
-        int step = cnt / 2, mid = fst + step;
-        if (seq[mid] < elem) fst = mid + 1, cnt -= step + 1; 
-        else cnt = step;
-    }
-    return (fst < seq.size() && seq[fst] == elem ? fst : -1);
-}*/
-        
 extern MsSolver *pb_solver;
 static
 void SIGINT_interrupt(int signum) { 
@@ -119,25 +107,41 @@ Int evalGoal(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls, vec<bool
 static
 void core_minimization(SimpSolver &sat_solver, Minisat::vec<Lit> &mus)
 {
-    int last_size = mus.size();
-    uint64_t totalConflicts = sat_solver.conflicts + 5000;
-
+    extern int opt_coremin_cfl, opt_coremin_1cfl;
+    static int min_count = 0;
+    uint64_t totalConflicts = sat_solver.conflicts + opt_coremin_cfl;
+    int last_size = mus.size(), init_size = mus.size();
     int verb = sat_solver.verbosity; sat_solver.verbosity = 0;
-    for (int i = 0; last_size > 1 && i < last_size; ) {
+    int sat_calls = 0;
+
+    min_count++;
+    if (opt_verbosity > 1) reportf("CoreMin(%d): ", min_count);
+    for (int i = 0; last_size > 1 && i < last_size && sat_solver.conflicts <= totalConflicts; ) {
         Lit p = mus[i];
         for (int j = i+1; j < last_size; j++) mus[j-1] = mus[j];
         mus.pop();
-        sat_solver.setConfBudget(500);
-        if (pb_solver->satSolveLimited(mus) != l_False) {
+        sat_calls++;
+        sat_solver.setConfBudget(opt_coremin_1cfl);
+        if (pb_solver->satSolveLimited(mus, false) != l_False) {
             mus.push();
             for (int j = last_size - 1; j > i; j--) mus[j] = mus[j-1];
             mus[i] = p; i++;
         } else last_size--;
-        if (sat_solver.conflicts > totalConflicts) break;
+    }
+    if (sat_solver.conflicts > totalConflicts) {
+        sat_solver.setConfBudget(opt_coremin_1cfl);
+        if (pb_solver->satSolveLimited(mus, false) == l_False && sat_solver.conflict.size() < mus.size()) {
+            mus.shrink(mus.size() - sat_solver.conflict.size());
+            for (int i = mus.size() - 1; i >= 0; i--) mus[i] = ~sat_solver.conflict[i];
+        }
+        if (opt_verbosity > 1)
+            reportf("reached %d conflicts in %d SAT calls; ", opt_coremin_cfl, sat_calls + 1);
     }
     sat_solver.budgetOff(); sat_solver.verbosity = verb;
 
     for (int i = mus.size() - 1; i >= 0; i--) mus[i] = ~mus[i];
+    if (opt_verbosity > 1) 
+        reportf("removed %d out of %d lits\n", init_size - mus.size(), init_size);
 }
 
 /*static void core_trimming(SimpSolver &sat_solver, int max_size, int n)
@@ -235,7 +239,7 @@ static weight_t do_stratification(MsSolver& S, vec<weight_t>& sorted_assump_Cs, 
     weight_t  max_assump_Cs = 0;
     while (sorted_assump_Cs.size() > 0 && sorted_assump_Cs.last() > lower_bound) {
         max_assump_Cs = sorted_assump_Cs.last(); sorted_assump_Cs.pop();
-        weight_t bound = max(lower_bound, max_assump_Cs - max(weight_t(1),max_assump_Cs/8));
+        weight_t bound = max(lower_bound, max_assump_Cs - max(weight_t(1),max_assump_Cs/10));
         while (sorted_assump_Cs.size() > 0 && sorted_assump_Cs.last() >= bound && !multi_level_opt[sorted_assump_Cs.size()]) 
             max_assump_Cs = sorted_assump_Cs.last(), sorted_assump_Cs.pop(); 
         int start = top_for_strat - 1, in_global_assumps = 0;
@@ -310,13 +314,14 @@ void MsSolver::harden_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs
 
 void MsSolver::optimize_last_constraint(vec<Linear*>& constrs, Minisat::vec<Lit>& assump_ps, Minisat::vec<Lit>& new_assump)
 {
+    extern int opt_coremin_1cfl;
     Minisat::vec<Lit> assump;
     if (constrs.size() == 0) return ;
     int verb = sat_solver.verbosity; sat_solver.verbosity = 0;
     bool found = false;
 
-    sat_solver.setConfBudget(1000);
-    if (satSolveLimited(assump_ps) == l_False) {
+    sat_solver.setConfBudget(opt_coremin_1cfl);
+    if (satSolveLimited(assump_ps, false) == l_False) {
         for (int i=0; i < sat_solver.conflict.size(); i++)
             if (assump_ps.last() == ~sat_solver.conflict[i]) { found = true; break;}
         if (found) {
@@ -332,6 +337,7 @@ void MsSolver::optimize_last_constraint(vec<Linear*>& constrs, Minisat::vec<Lit>
                 sat_solver.setFrozen(var(newp),true);
                 sat_solver.addClause(~assump_ps.last(), newp);
                 new_assump.push(assump_ps.last()); assump_ps.last() = newp;
+                sat_solver.setConfBudget(opt_coremin_1cfl);
                 if (satSolveLimited(assump_ps) != l_False) break;
                 found = false;
                 for (int i=0; i < sat_solver.conflict.size(); i++)
@@ -344,19 +350,37 @@ void MsSolver::optimize_last_constraint(vec<Linear*>& constrs, Minisat::vec<Lit>
 
 static inline int log2(int n) { int i=0; while (n>>=1) i++; return i; }
 
-lbool MsSolver::satSolveLimited(Minisat::vec<Lit> &assump_ps)
+lbool MsSolver::satSolveLimited(Minisat::vec<Lit> &assump_ps, bool do_simp)
 {
       if (ipamir_used) {
           for (int i = 0; i < global_assumptions.size(); i++) assump_ps.push(global_assumptions[i]);
           for (int i = 0; i < harden_assump.size(); i++)      assump_ps.push (harden_assump[i]);
       }
-      lbool status = sat_solver.solveLimited(assump_ps);
+      lbool status = sat_solver.solveLimited(assump_ps, do_simp);
 
       if (ipamir_used) {
           if (harden_assump.size() > 0)      assump_ps.shrink(harden_assump.size());
           if (global_assumptions.size() > 0) assump_ps.shrink(global_assumptions.size());
       }
       return status;
+}
+
+bool MsSolver::removeGlobalAndHardenAssumptions(Minisat::vec<Lit> &sat_conflicts) 
+{
+        if (global_assumptions.size() > 0 || harden_assump.size() > 0) {
+            int j = 0;
+            Sort::sort(harden_assump);
+            // remove global assumptions from sat_conflicts (core)
+            for (int i = 0; i < sat_conflicts.size(); i++) {
+                if (global_assump_vars.at(var(sat_conflicts[i]))) continue;
+                if (Sort::bin_search(harden_assump,sat_conflicts[i]) >= 0) continue;
+                if (j < i) sat_conflicts[j] = sat_conflicts[i];
+                j++;
+            }
+            if (j == 0) return true;                               // unconditional UNSAT
+            if (j < sat_conflicts.size()) sat_conflicts.shrink(sat_conflicts.size() - j);
+        }
+        return false;
 }
 
 void reset_soft_cls(vec<Pair<weight_t,Minisat::vec<Lit>*>> &soft_cls, vec<Pair<weight_t,Minisat::vec<Lit>*>> &fixed_soft_cls, vec<Pair<weight_t, Lit> > &modified_soft_cls, weight_t goal_gcd)
@@ -643,7 +667,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (opt_verbosity >= 1 && ml_opt > 0 && opt_output_top < 0) 
             reportf("Boolean multilevel optimization (BMO) can be done in %d point(s).%s\n", 
                     ml_opt, (opt_lexicographic ? "" : " Try -lex-opt option."));
-        max_assump_Cs = do_stratification(*this, sorted_assump_Cs, soft_cls, top_for_strat, assump_ps, assump_Cs, 0, multi_level_opt);
+        max_assump_Cs = do_stratification(*this, sorted_assump_Cs, soft_cls, top_for_strat, assump_ps, assump_Cs, sorted_assump_Cs.last()-1, multi_level_opt);
     }
     if (psCs.size() > 0) max_input_lit = psCs.last().fst;
     if (opt_minimization == 1 && opt_maxsat_prepr) 
@@ -709,6 +733,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             return;
         }
       }
+    if (opt_scip_parallel && scip_solver.asynch_result.valid() &&
+            l_True == scip_solver.asynch_result.get()) break;
 #endif
       sat_conflicts.clear();
       if (use_base_assump) for (int i = 0; i < base_assump.size(); i++) assump_ps.push(base_assump[i]);
@@ -751,7 +777,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             continue;
         }
 #endif
-        if (opt_minimization == 1 && opt_to_bin_search && sat_solver.conflicts >= opt_unsat_conflicts) goto SwitchSearchMethod;
+        if (opt_minimization == 1 && opt_to_bin_search && sat_solver.conflicts >= opt_unsat_conflicts)
+            goto SwitchSearchMethod;
       } else if (status == l_True) { // SAT returned
         if (opt_minimization == 1 && opt_delay_init_constraints) {
             opt_delay_init_constraints = false;
@@ -848,7 +875,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             if (opt_minimization == 1) {
                 assert(sorted_assump_Cs.size() > 0 || !delayed_assump.empty()); 
                 int old_top = top_for_strat;
-                if (delayed_assump.empty() || sorted_assump_Cs.size() > 0 && Int(sorted_assump_Cs.last()) > delayed_assump.top().fst) {
+                if (delayed_assump.empty() || sorted_assump_Cs.size() > 0 && Int(sorted_assump_Cs.last()) > delayed_assump.top().fst * 9/10) {
                     if (opt_lexicographic && multi_level_opt[sorted_assump_Cs.size()]) {
                         bool standard_multi_level_opt = multi_level_opt[sorted_assump_Cs.size()] & 1;
                         bool general_multi_level_opt = multi_level_opt[sorted_assump_Cs.size()] & 2;
@@ -868,14 +895,14 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                             if (opt_verbosity > 0) reportf("BMO - done.\n");
                         }
                     }
-                    weight_t lower_bound = delayed_assump.empty() ? 0 : tolong(delayed_assump.top().fst);
+                    weight_t lower_bound = delayed_assump.empty() ? 0 : tolong(delayed_assump.top().fst * 9/10);
                     max_assump_Cs = do_stratification(*this, sorted_assump_Cs, soft_cls, top_for_strat, assump_ps, assump_Cs, lower_bound, multi_level_opt);
-                } else max_assump_Cs = delayed_assump.top().fst; 
+                } else max_assump_Cs = delayed_assump.top().fst * 9/10; 
 
                 if (!delayed_assump.empty() && delayed_assump.top().fst >= max_assump_Cs) {
                     vec<Pair<Lit, Int> > new_assump;
                     do { 
-                        new_assump.push(Pair_new(delayed_assump.top().snd, max_assump_Cs));
+                        new_assump.push(Pair_new(delayed_assump.top().snd,delayed_assump.top().fst)); 
                         delayed_assump_sum -= delayed_assump.top().fst;
                         delayed_assump.pop(); 
                     } while (!delayed_assump.empty() && delayed_assump.top().fst >= max_assump_Cs);
@@ -897,49 +924,38 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                         preprocess_soft_cls(assump_ps, assump_Cs, max_assump_Cs, delayed_assump, delayed_assump_sum);
                 }
                 continue;
-            } else harden_soft_cls(assump_ps, assump_Cs, sorted_assump_Cs, delayed_assump, delayed_assump_sum);
-            if (opt_minimization == 0 || best_goalvalue - LB_goalvalue < opt_seq_thres) {
-                opt_minimization = 0;
-                assump_lit = (assump_ps.size() == 0 ? lit_Undef : mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
-                try_lessthan = best_goalvalue;
-                if (scip_foundUB && scip_UB < try_lessthan) try_lessthan = scip_UB + 1;
-            } else {
-                assump_lit = assump_lit == lit_Undef || !use_base_assump ?
-                    mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars)) : assump_lit;
-                Int lb = (scip_foundLB ? max(LB_goalvalue, scip_LB) : LB_goalvalue), 
-                    ub = (scip_foundUB ? min(best_goalvalue, scip_UB) : best_goalvalue);
-                try_lessthan = (lb*(100-opt_bin_percent) + ub*(opt_bin_percent))/100;
-            }
-            Int goal_diff = harden_goalval+fixed_goalval + gbmo_goalval;
-            if (!addConstr(goal_ps, goal_Cs, try_lessthan - goal_diff, -2, assump_lit))
-                break; // unsat
-            if (assump_lit != lit_Undef && !use_base_assump) {
-                sat_solver.setFrozen(var(assump_lit),true);
-                assump_ps.push(assump_lit), assump_Cs.push(opt_minimization == 2 ? try_lessthan : lastCs);
-            }
-            last_unsat_constraint_lit = lit_Undef;
-            convertPbs(false);
+        } else harden_soft_cls(assump_ps, assump_Cs, sorted_assump_Cs, delayed_assump, delayed_assump_sum);
+        if (opt_minimization == 0 || best_goalvalue - LB_goalvalue < opt_seq_thres) {
+            opt_minimization = 0;
+            assump_lit = (assump_ps.size() == 0 ? lit_Undef : mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
+            try_lessthan = best_goalvalue;
+            if (scip_foundUB && scip_UB < try_lessthan) try_lessthan = scip_UB + 1;
+        } else {
+            assump_lit = assump_lit == lit_Undef || !use_base_assump ?
+                mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars)) : assump_lit;
+            Int lb = (scip_foundLB ? max(LB_goalvalue, scip_LB) : LB_goalvalue), 
+                ub = (scip_foundUB ? min(best_goalvalue, scip_UB) : best_goalvalue);
+            try_lessthan = (lb*(100-opt_bin_percent) + ub*(opt_bin_percent))/100;
         }
-      } else { // UNSAT returned
-        if (sat_solver.conflict.size() == 0) break;          // unconditional UNSAT
-        sat_solver.conflict.copyTo(sat_conflicts);
-        if (global_assumptions.size() > 0 || harden_assump.size() > 0) {
-            int j = 0;
-            Sort::sort(harden_assump);
-            for (int i = 0; i < sat_conflicts.size(); i++) { // remove global assumptions from sat_conflicts (core)
-                if (global_assump_vars.at(var(sat_conflicts[i]))) continue;
-                if (Sort::bin_search(harden_assump,sat_conflicts[i]) >= 0) continue;
-                if (j < i) sat_conflicts[j] = sat_conflicts[i];
-                j++;
-            }
-            if (j == 0) break;                               // unconditional UNSAT
-            if (j < sat_conflicts.size()) sat_conflicts.shrink(sat_conflicts.size() - j);
+        Int goal_diff = harden_goalval+fixed_goalval + gbmo_goalval;
+        if (!addConstr(goal_ps, goal_Cs, try_lessthan - goal_diff, -2, assump_lit))
+            break; // unsat
+        if (assump_lit != lit_Undef && !use_base_assump) {
+            sat_solver.setFrozen(var(assump_lit),true);
+            assump_ps.push(assump_lit), assump_Cs.push(opt_minimization == 2 ? try_lessthan : lastCs);
         }
-        if (assump_ps.size() == 0 && assump_lit == lit_Undef || 
-            opt_minimization == 0 && sat_conflicts.size() == 1 && sat_conflicts[0] == ~assump_lit) break;
-        {
-        Minisat::vec<Lit> core_mus;
-        if (opt_core_minimization) {
+        last_unsat_constraint_lit = lit_Undef;
+        convertPbs(false);
+    }
+  } else { // UNSAT returned
+    if (sat_solver.conflict.size() == 0) break;          // unconditional UNSAT
+    sat_solver.conflict.copyTo(sat_conflicts);
+    if (ipamir_used && removeGlobalAndHardenAssumptions(sat_conflicts)) break; // as above - UNSAT
+    if (assump_ps.size() == 0 && assump_lit == lit_Undef || 
+        opt_minimization == 0 && sat_conflicts.size() == 1 && sat_conflicts[0] == ~assump_lit) break;
+    {
+    Minisat::vec<Lit> core_mus;
+    if (opt_core_minimization && sat_conflicts.size() > 3) {
             if (weighted_instance) {
                 vec<Pair<Pair<Int, int>, Lit> > Cs_mus;
                 for (int i = 0; i < sat_conflicts.size(); i++) {
@@ -1026,7 +1042,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 satisfied && best_goalvalue - LB_goalvalue < gbmo_remain_weight) && 
                 (opt_minimization != 1 || last_soft_in_best_model <= last_soft_in_queue)) {
             if (opt_minimization >= 1 && opt_verbosity >= 2) {
-                char *t; reportf("Lower bound  = %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
+                char *t; reportf("Lower bound: %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
             break;
         }
 
@@ -1120,10 +1136,10 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (weighted_instance && satisfied && sat_solver.conflicts > 10000)
             harden_soft_cls(assump_ps, assump_Cs, sorted_assump_Cs, delayed_assump, delayed_assump_sum);
         if (opt_minimization >= 1 && opt_verbosity >= 2) {
-            char *t; reportf("Lower bound  = %s, assump. size = %d, stratif. level = %d (cls: %d, wght: %s)\n", t=toString(LB_goalvalue * goal_gcd), 
+            char *t; reportf("Lower bound: %s, assump. size: %d, stratif. level: %d (cls: %d, wght: %s)\n", t=toString(LB_goalvalue * goal_gcd), 
                     assump_ps.size(), sorted_assump_Cs.size(), top_for_strat, toString(sorted_assump_Cs.size() > 0 ? sorted_assump_Cs.last() : 0)); xfree(t); }
         if (opt_minimization == 2 && opt_verbosity == 1 && use_base_assump) {
-            char *t; reportf("Lower bound  = %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
+            char *t; reportf("Lower bound: %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
 SwitchSearchMethod:        
         if (opt_minimization == 1 && opt_to_bin_search && LB_goalvalue + 5 < UB_goalvalue &&
             cpuTime() >= opt_unsat_cpu + start_solving_cpu && sat_solver.conflicts > opt_unsat_conflicts) {

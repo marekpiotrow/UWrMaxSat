@@ -22,7 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define MAIN_UTILS_H
 
 #ifndef UWR_VERSION
-#define UWR_VERSION "1.7.0"
+#define UWR_VERSION "1.7.2"
 #endif
 
 extern bool   opt_model_out;
@@ -33,6 +33,8 @@ extern bool   opt_preprocess;
 extern bool   opt_old_format;
 extern int    opt_mem_lim;
 extern bool   opt_use_maxpre;
+extern int    opt_coremin_cfl;
+extern int    opt_coremin_1cfl;
 extern int    exit_code;
 
 #ifdef MAXPRE

@@ -182,13 +182,13 @@ class MsSolver final : public PbSolver {
 
     void    harden_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs, vec<weight_t>& sorted_assump_Cs, IntLitQueue& delayed_assump, Int& delayed_assump_sum);
     void    optimize_last_constraint(vec<Linear*>& constrs, Minisat::vec<Lit>& assump_ps, Minisat::vec<Lit>& new_assump);
-
 #ifdef USE_SCIP
     lbool scip_solve(const Minisat::vec<Lit> *assump_ps, const vec<Int> *assump_Cs, const IntLitQueue *delayed_assump,
             bool weighted_instance, int sat_orig_vars, int sat_orig_cls, ScipSolver &scip_solver);
 #endif    
 
-    lbool   satSolveLimited(Minisat::vec<Lit> &assump_ps);
+    lbool   satSolveLimited(Minisat::vec<Lit> &assump_ps, bool do_simp = true);
+    bool    removeGlobalAndHardenAssumptions(Minisat::vec<Lit> &sat_conflicts);
     void    maxsat_solve(solve_Command cmd = sc_Minimize); 
     void    preprocess_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs, const Int& max_assump_Cs, 
                                            IntLitQueue& delayed_assump, Int& delayed_assump_sum);

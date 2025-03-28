@@ -709,7 +709,7 @@ void PbSolver::solve(solve_Command cmd)
             break; // unsat
         if (assump_lit != lit_Undef && !use_base_assump) assump_ps.push(assump_lit);
         if (opt_minimization >= 1 && opt_verbosity >= 2) {
-            char *tmp; reportf("Lower bound  = %s\n", tmp = toString(LB_goalvalue)); xfree(tmp); }
+            char *tmp; reportf("Lower bound: %s\n", tmp = toString(LB_goalvalue)); xfree(tmp); }
         convertPbs(false);
       }         
     } // END OF LOOP

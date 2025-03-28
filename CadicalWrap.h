@@ -26,6 +26,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #include "core/SolverTypes.h"
 
 extern int opt_cpu_lim;
+extern int opt_minimization;
 extern void set_interrupted(bool cpu_interrupted);
 
 namespace COMinisatPS {
@@ -72,8 +73,8 @@ public:
         solver = new CaDiCaL::Solver;
         limitTime(opt_cpu_lim);
         verbosity = old_verbosity = solver->get("verbose");
+        solver->set("stats",0);
         solver->prefix("c [CDCL] ");
-        solver->set("walk",0);
     }
     ~SimpSolver() { delete solver; }
 
@@ -119,7 +120,11 @@ public:
     int  nVars() const { return solver->vars(); }
     int  nFreeVars() const { return solver->active(); }
     int  nClauses() const { return solver->irredundant(); }
-    void setPolarity(Var, bool) { /* unsupported */ }
+    void setPolarity(Var p, bool b) {
+        (void)p; (void)b;
+        //int x = lit2val(mkLit(p));
+        //solver->phase(b ? x : -x);
+    }
     void setFrozen(Var p, bool set) {
         int x = lit2val(mkLit(p));
         if (set) solver->freeze(x);
@@ -149,11 +154,12 @@ public:
     void setConfBudget(int64_t x) { solver->limit("conflicts", x); }
     void budgetOff() { solver->limit("conflicts", -1); }
 
-    lbool solveLimited() {
+    lbool solveLimited(bool do_simp = true) {
         if (verbosity < 0) verbosity = 0; else if (verbosity > 3) verbosity = 3;
         if (verbosity != old_verbosity) solver->set("verbose", old_verbosity = verbosity);
 
         model.clear();
+        (void)do_simp;
         int ret = solver->solve();
         conflicts = solver->conflicts();
         if (ret == 10) {
@@ -162,16 +168,16 @@ public:
         }
         return ret == 10 ? l_True : (ret == 20 ? l_False : l_Undef);
     }
-    bool solve() {
+    bool solve(bool do_simp = true) {
         budgetOff();
-        lbool ret = solveLimited();
+        lbool ret = solveLimited(do_simp);
         assert(ret != l_Undef);
         return ret == l_True;
     }
-    lbool solveLimited(const vec<Lit>& assumps) {
+    lbool solveLimited(const vec<Lit>& assumps, bool do_simp = true) {
         for (int i = 0; i < assumps.size(); i++)
             if (toInt(assumps[i]) >= 0) solver->assume(lit2val(assumps[i]));
-        lbool ret = solveLimited();
+        lbool ret = solveLimited(do_simp);
         if (ret == l_False) {
             conflict.clear();
             for (int i = 0; i < assumps.size(); i++)
@@ -179,9 +185,9 @@ public:
         }
         return ret;
     }
-    bool solve(const vec<Lit>& assumps) {
+    bool solve(const vec<Lit>& assumps, bool do_simp = true) {
         budgetOff();
-        lbool ret = solveLimited(assumps);
+        lbool ret = solveLimited(assumps, do_simp);
         assert(ret != l_Undef);
         return ret == l_True;
     }

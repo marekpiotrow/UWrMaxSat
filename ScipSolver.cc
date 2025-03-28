@@ -219,7 +219,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                 MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", opt_scip_cpu));
                 //MY_SCIP_CALL(SCIPrestartSolve(scip_solver->scip));
                 if (!solver->ipamir_used || opt_verbosity > 0) 
-                    reportf("Restarting SCIP solver (with time-limit = %.0fs) ...\n", opt_scip_cpu);
+                    reportf("Restarting SCIP solver (with time-limit: %.0fs) ...\n", opt_scip_cpu);
                 try_again = true;
             }
         }
@@ -276,10 +276,12 @@ clean_and_return:
         if (v != nullptr) MY_SCIP_CALL(SCIPreleaseVar(scip_solver->scip, &v));
     scip_solver->vars.clear();
     scip_solver->interrupted = false;
+    extern bool opt_scip_parallel;
 
     MY_SCIP_CALL(SCIPfree(&scip_solver->scip));
     scip_solver->scip = nullptr;
-    if (solver->ipamir_used && found_opt == l_True) solver->sat_solver.interrupt();
+    if ((opt_scip_parallel || solver->ipamir_used) && found_opt == l_True)
+        solver->sat_solver.interrupt();
     return found_opt;
 }
 
@@ -417,7 +419,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     // 5. do solve
     // MY_SCIP_CALL((SCIPwriteOrigProblem(scip, "1.lp", nullptr, FALSE)));
     // MY_SCIP_CALL((SCIPwriteTransProblem(scip, "2.lp", nullptr, FALSE)));
-    if (!ipamir_used || opt_verbosity > 0) reportf("Starting SCIP solver %s (with time-limit = %.0fs) ...\n", 
+    if (!ipamir_used || opt_verbosity > 0) reportf("Starting SCIP solver %s (with time-limit: %.0fs) ...\n", 
             (opt_scip_parallel? "in a separate thread" : ""), opt_scip_cpu);
 
     scip_solver.scip = scip;
