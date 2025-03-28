@@ -733,7 +733,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             return;
         }
       }
-    if (opt_scip_parallel && scip_solver.asynch_result.valid() &&
+    if (opt_scip_parallel && scip_solver.asynch_result.valid() && 
+            scip_solver.asynch_result.wait_for(std::chrono::milliseconds(1)) == std::future_status::ready &&
             l_True == scip_solver.asynch_result.get()) break;
 #endif
       sat_conflicts.clear();
