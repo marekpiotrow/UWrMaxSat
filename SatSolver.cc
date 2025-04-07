@@ -175,7 +175,7 @@ bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const
     if (!okay()) return false;
     if (value(lit) != l_Undef) return value(lit) == l_True;
     for (int i = 0; i < assumps.size(); i++)
-        if (value(assumps[i]) == l_False) return false;
+        if (value(assumps[i]) == l_False) return true;
 
     for (int i = 0; i < assumps.size(); i++)
         if (value(assumps[i]) != l_True && toInt(assumps[i]) >= 0) solver->assume(lit2val(assumps[i]));
@@ -184,7 +184,7 @@ bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const
     solver->limit ("decisions", 1); // set decision limit to one
     lbool ret = solveLimited();
 
-    if (ret == l_Undef && extPropagator->dec_level > 1) {
+    if (ret != l_False && extPropagator->dec_level > 1) {
         for (const int clit : extPropagator->last_trails[1 - extPropagator->dec_level % 2]) {
             if (clit != 0) {
                 Lit l = mkLit(abs(clit) - 1, clit < 0);
@@ -192,7 +192,7 @@ bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const
             }
         }
     }
-    return ret == l_Undef;
+    return ret != l_False;
 }
 #elif defined(MERGESAT)
 bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const vec<Lit>& assumptions, int )

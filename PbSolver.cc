@@ -719,9 +719,10 @@ void PbSolver::solve(solve_Command cmd)
     if (opt_verbosity >= 1){
         if      (!sat)
             reportf(asynch_interrupt ? "\bUNKNOWN\b\n" : "\bUNSATISFIABLE\b\n");
-        else if (goal == NULL)
+        else if (goal == NULL && !opt_maxsat) {
             reportf("\bSATISFIABLE: No goal function specified.\b\n");
-        else if (cmd == sc_FirstSolution){
+            asynch_interrupt = true; // to get SATISFIABLE result
+        } else if (cmd == sc_FirstSolution){
             char* tmp = toString(best_goalvalue * goal_gcd);
             reportf("\bFirst solution found: %s\b\n", tmp);
             xfree(tmp);
@@ -734,6 +735,7 @@ void PbSolver::solve(solve_Command cmd)
             reportf("\bOptimal solution: %s\b\n", tmp);
             xfree(tmp);
         }
+        printStats(true);
     }
 }
 

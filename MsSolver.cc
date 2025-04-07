@@ -490,7 +490,12 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
             asynch_interrupt = true;
         if (soft_cls.size() == 0) {
-            if (!ipamir_used) opt_satisfiable_out = false;
+            if (!ipamir_used) {
+                if (!opt_maxsat && goal == NULL && satisfied)      // force a correct output for
+                    opt_satisfiable_out = asynch_interrupt = true; // pseudo-Boolean decision problems
+                else opt_satisfiable_out = false;
+                if (opt_verbosity > 0) printStats(true);
+            }
             return;
         } else if (status == l_True) {
             for (int i = 0; i < soft_cls.size(); i++)
