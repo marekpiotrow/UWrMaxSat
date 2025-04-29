@@ -73,6 +73,7 @@ public:
         solver = new CaDiCaL::Solver;
         limitTime(opt_cpu_lim);
         verbosity = old_verbosity = solver->get("verbose");
+        solver->set("seed",0);
         solver->set("stats",0);
         solver->prefix("c [CDCL] ");
     }

@@ -74,7 +74,7 @@ The 'B' (parser Buffer) parameter should implement:
 
 The 'S' (Solver) parameter should implement:
 
-    void allocConstrs(int n_vars, int n_constrs)
+    void allocConstrs(int n_vars, int n_constrs, int n_eq_constrs, int intsize)
         -- Called before any of the below methods. Sets the size of the problem.
 
     int  getVar(cchar* name)
@@ -185,7 +185,7 @@ void parseExpr(B& in, S& solver, vec<Lit>& out_ps, vec<Int>& out_Cs, vec<char>& 
 template<class B, class S>
 void parseSize(B& in, S& solver)
 {
-    int n_vars, n_constrs;
+    int n_vars, n_constrs, n_eq_constrs = -1, intsize = -1;
 
     if (*in != '*') return;
     ++in;
@@ -198,7 +198,13 @@ void parseSize(B& in, S& solver)
     if (!skipText(in, "#constraint=")) goto Abort;
     n_constrs = toint(parseInt(in));
 
-    solver.allocConstrs(n_vars, n_constrs);
+    skipWhitespace(in);
+    if (skipText(in, "#equal=")) {
+        n_eq_constrs = toint(parseInt(in));
+        skipWhitespace(in);
+        if (skipText(in, "intsize=")) intsize = toint(parseInt(in));
+    }
+    solver.allocConstrs(n_vars, n_constrs, n_eq_constrs, intsize);
 
   Abort:
     skipLine(in);
@@ -306,7 +312,7 @@ static void parse_p_line(B& in, S& solver, bool& wcnf_format, Int& hard_bound)
         hard_bound = parseInt(in);
 
     if (!opt_use_maxpre) {
-        solver.allocConstrs(n_vars, n_constrs);
+        solver.allocConstrs(n_vars, n_constrs, 0, 0);
         for (int i = 1; i <= n_vars; i++) {
             snprintf(&tmp[0], tmp.size(), "%d", i);
             solver.getVar(tmp);

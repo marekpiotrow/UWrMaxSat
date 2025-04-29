@@ -139,6 +139,8 @@ public:
                 //, stats(sat_solver.stats_ref())
                 , declared_n_vars(-1)
                 , declared_n_constrs(-1)
+                , declared_n_eq_constrs(-1)
+                , declared_intsize(-1)
                 , totalSorters(0), totalSorterInputs(0.0), totalReusedInputs(0.0), totalReusedPercent(0.0)
                 , best_goalvalue(Int_MAX)
                 , asynch_interrupt(false)
@@ -171,6 +173,8 @@ public:
 
     int     declared_n_vars;            // Number of variables declared in file header (-1 = not specified).
     int     declared_n_constrs;         // Number of constraints declared in file header (-1 = not specified).
+    int     declared_n_eq_constrs;      // Number of equal constraints declared in file header (-1 = not specified).
+    int     declared_intsize;           // The size of integers required to handle an instance, declared in file header (-1 = not specified).
     int     pb_n_vars;                  // Actual number of variables (before clausification).
     int     pb_n_constrs;               // Actual number of constraints (before clausification).
 
@@ -186,7 +190,7 @@ public:
     // Problem specification:
     //
     int     getVar         (cchar* name);
-    void    allocConstrs   (int n_vars, int n_constrs);
+    void    allocConstrs   (int n_vars, int n_constrs, int n_eq_constrs, int intsize);
     void    addGoal        (const vec<Lit>& ps, const vec<Int>& Cs);
     bool    addConstr      (const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit);
 

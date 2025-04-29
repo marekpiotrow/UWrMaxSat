@@ -71,7 +71,6 @@ static void clear_assumptions(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs)
         assump_ps.shrink(removed), assump_Cs.shrink(removed);
 }
 
-static
 bool satisfied_soft_cls(Minisat::vec<Lit> *cls, vec<bool>& model)
 {
     assert(cls != NULL);
@@ -434,8 +433,14 @@ static bool separate_gbmo_subgoal(vec<Int>& splitting_weights, vec<Lit>& goal_ps
 
 void MsSolver::maxsat_solve(solve_Command cmd)
 {
+    extern bool   opt_force_scip, opt_use_scip_slvr, opt_scip_parallel;
+    extern double opt_scip_delay;
+
     if (!okay() || nVars() == 0) {
-        if (opt_verbosity >= 1) sat_solver.printVarsCls();
+        if (opt_verbosity >= 1) {
+            sat_solver.printVarsCls();
+            printStats(true);
+        }
         if (okay())  {
             extern bool opt_satisfiable_out;
             best_goalvalue = fixed_goalval; opt_satisfiable_out = false; }
@@ -453,8 +458,25 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (opt_verbosity >= 1)
             reportf("Converting %d PB-constraints to clauses...\n", constrs.size());
         propagate();
+#ifdef USE_SCIP
+        if (opt_use_scip_slvr && declared_intsize <= std::numeric_limits<double>::digits) {
+            opt_force_scip = true;
+            scip_init(scip_solver, sat_solver.nVars());
+            if (opt_scip_parallel && opt_scip_delay == 0) {
+                Minisat::vec<Lit> assump_ps;
+                vec<Int> assump_Cs;
+                IntLitQueue delayed_assump;
+                scip_solve(&assump_ps, &assump_Cs, &delayed_assump, true,
+                        pb_n_vars, pb_n_constrs, scip_solver);
+            }
+        } else 
+            opt_use_scip_slvr = false;
+#endif
         if (!convertPbs(true)){
-            if (opt_verbosity >= 1) sat_solver.printVarsCls(constrs.size() > 0);
+            if (opt_verbosity >= 1) {
+                sat_solver.printVarsCls(constrs.size() > 0);
+                printStats(true);
+            }
             assert(!okay()); return;
         }
         if (opt_convert_goal != ct_Undef)
@@ -502,6 +524,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 if (soft_cls[i].snd->size() > 1)
                     best_model[var(soft_cls[i].snd->last())] = !sign(soft_cls[i].snd->last());
             Minisat::vec<Lit> soft_unsat;
+            sat_solver.optimizeModel(soft_cls, best_model, 0, soft_cls.size() - 1);
             best_goalvalue = fixed_goalval + evalGoal(soft_cls, best_model, soft_unsat);
             char* tmp = toString(best_goalvalue);
             if (opt_satisfiable_out && (opt_satlive || opt_verbosity == 0))
@@ -521,7 +544,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     }
 
     opt_sort_thres *= opt_goal_bias;
-    opt_maxsat = true;
     opt_shared_fmls = true; //opt_reuse_sorters = false;
 
     if (opt_cnf != NULL)
@@ -693,7 +715,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     }
 #ifdef USE_SCIP
     if (ipamir_used) opt_finder.store(OPT_NONE);
-    extern bool opt_use_scip_slvr;
     extern double opt_scip_delay;
     int sat_orig_vars = sat_solver.nVars(), sat_orig_cls = sat_solver.nClauses();
     Int weight_sum = (UB_goalval - (fixed_goalval >= 0 ? 0 : fixed_goalval * 2)) * goal_gcd; 
@@ -821,6 +842,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             for (int i = 0; i < top_for_strat; i++)
                 if (soft_cls[i].snd->size() > 1)
                     model[var(soft_cls[i].snd->last())] = !sign(soft_cls[i].snd->last());
+            sat_solver.optimizeModel(soft_cls, model, top_for_strat, top_for_hard - 1);
             Int goalvalue = evalGoal(soft_cls, model, soft_unsat) + fixed_goalval;
             extern bool opt_satisfiable_out;
             if (goalvalue < best_goalvalue || opt_output_top > 0 && goalvalue == best_goalvalue) {

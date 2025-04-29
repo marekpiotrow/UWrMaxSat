@@ -334,8 +334,14 @@ void handlerOutputResult(const PbSolver& S, bool optimum = true)
 
 
 void SIGINT_handler(int /*signum*/) {
-    reportf("\n");
-    reportf("*** INTERRUPTED ***\n");
+    if (opt_verbosity >= 1) {
+        reportf("\n");
+        reportf("*** INTERRUPTED ***\n");
+        reportf("_______________________________________________________________________________\n\n");
+        pb_solver->printStats();
+        reportf("_______________________________________________________________________________\n");
+    }
+    handlerOutputResult(*pb_solver, false);
     //SatELite::deleteTmpFiles();
     fflush(stdout);
     std::_Exit(exit_code); }

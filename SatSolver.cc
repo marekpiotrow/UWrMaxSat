@@ -43,14 +43,17 @@ const Minisat::Clause& ExtSimpSolver::getClause  (int i, bool &is_satisfied) con
 }
 #endif
 
-bool ExtSimpSolver::reduceProblem()
+bool ExtSimpSolver::reduceProblem(int level)
 {
     bool res = true;
 #if defined(CADICAL)
+    if (level != 0) solver->optimize(level);
     res = eliminate(false);
     solver->traverse_witnesses_forward(extendIt);
     extendIt.elimCls.moveTo(elimClauses);
+    if (level != 0) solver->optimize(0);
 #elif !defined(CRYPTOMS)
+    (void)level;
     if (use_simplification) res = eliminate();
     elimclauses.copyTo(elimClauses);
 #endif
@@ -90,6 +93,27 @@ next:;
     }
 #else
     (void)model;
+#endif
+}
+
+void ExtSimpSolver::optimizeModel(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls,
+        vec<bool>& model, int from_soft, int to_soft)
+{
+#if defined(CADICAL)
+    extern bool satisfied_soft_cls(Minisat::vec<Lit> *cls, vec<bool>& model);
+    Int sum = 0;
+    bool sat = false, opt = false;
+    for (int i = to_soft; i >= from_soft; i--) {
+        Lit p = soft_cls[i].snd->last(); if (soft_cls[i].snd->size() == 1) p = ~p;
+        assert(var(p) < model.size());
+        if ((( sign(p) && !model[var(p)]) || (!sign(p) &&  model[var(p)])) 
+            && !(sat = satisfied_soft_cls(soft_cls[i].snd, model))) {
+            if (solver->flip(var(p) + 1)) model[var(p)] = !model[var(p)], opt = true;
+        }
+        if (sat) { sat = false; model[var(p)] = !model[var(p)]; }
+    }
+    if (opt)
+        for (int v = model.size() - 1 ; v >= 0; v--) model[v] = solver->val(v + 1) > 0;
 #endif
 }
 

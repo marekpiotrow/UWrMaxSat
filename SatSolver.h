@@ -105,8 +105,9 @@ public:
 #if !defined(CADICAL) && !defined(CRYPTOMS)
     const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;
 #endif
-    bool reduceProblem();
+    bool reduceProblem(int level = 0);
     void extendGivenModel(vec<lbool> &model);
+    void optimizeModel(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls, vec<bool>& model, int from_soft, int to_soft);
     void printVarsCls(bool encoding = true, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls = NULL, int soft_cls_sz = 0);
     void startPropagator(const Minisat::vec<Lit>& observed); // needed in CaDiCaL
     void stopPropagator(); // needed in CaDiCaL

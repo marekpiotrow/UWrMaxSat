@@ -20,10 +20,8 @@
 #ifdef USE_SCIP
 
 #include <scip/scip.h>
-//#include <scip/scipdefplugins.h>
 #include <vector>
 #include <future>
-//#include "MsSolver.h"
 
 class MsSolver;
 
@@ -33,10 +31,12 @@ struct ScipSolver {
     std::vector<lbool>       model;
     int64_t                  obj_offset;
     bool                     must_be_started;
+    bool                     started;
     bool                     interrupted;
     std::future<lbool>       asynch_result;
 
-    ScipSolver() : scip(nullptr), obj_offset(0), must_be_started(false), interrupted(false) {}
+    ScipSolver() : scip(nullptr), obj_offset(0), must_be_started(false), started(false),
+                   interrupted(false) {}
 } ;
 
 void  scip_interrupt_solve(ScipSolver &scip);
