@@ -356,7 +356,7 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
         return l_Undef;
 
     if (!ipamir_used || opt_verbosity >= 2)
-        reportf("Using SCIP solver, version %.1f.%d, https://www.scipopt.org\n", 
+        reportf("Using SCIP solver, version %.2f.%d, https://www.scipopt.org\n", 
             SCIPversion(), SCIPtechVersion());
 
     // 1. create scip context object
@@ -494,9 +494,9 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             (opt_scip_parallel? "in a separate thread" : ""), opt_scip_cpu);
 
     scip_solver.obj_offset = obj_offset;
-    if (opt_scip_delay > 0) {
+    if (opt_scip_delay > cpuTime()) {
         scip_solver.must_be_started = true;
-        if (!ipamir_used || opt_verbosity > 0) reportf("SCIP start delayed for at least %.0fs\n", opt_scip_delay);  
+        if (!ipamir_used || opt_verbosity > 0) reportf("SCIP start delayed for at least %.0fs\n", opt_scip_delay - cpuTime());  
         return l_Undef;
     } else if (opt_scip_parallel) {
         scip_solver.asynch_result = std::async(std::launch::async, scip_solve_async, &scip_solver, this);

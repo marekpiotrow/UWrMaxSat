@@ -70,8 +70,8 @@ config:
            echo 'MCL_LIB?='                           ; \
            echo 'endif'                               ; \
            echo 'ifneq ($$(USESCIP),)'                  ; \
-	   echo 'MCL_INCLUDE+=-I../scipoptsuite-9.2.1/scip/src -I../scipoptsuite-9.2.1/build/scip' ; \
-	   echo 'MCL_LIB+=-L../scipoptsuite-9.2.1/build/lib -lscip -lsoplex-pic'                 ; \
+	   echo 'MCL_INCLUDE+=-I../scipoptsuite-9.2.2/scip/src -I../scipoptsuite-9.2.2/build/scip' ; \
+	   echo 'MCL_LIB+=-L../scipoptsuite-9.2.2/build/lib -lscip -lsoplex-pic'                 ; \
            echo 'endif'                                ; \
 	   echo 'prefix?=$(prefix)'                   ) > config.mk
 
@@ -87,7 +87,7 @@ MINISATP_DLIB = libuwrmaxsat.so# Name of MiniSat+ shared library.
 # Shared Library Version
 SOMAJOR=1
 SOMINOR=7
-SORELEASE?=.0#   Declare empty to leave out from library file name.
+SORELEASE?=.3#   Declare empty to leave out from library file name.
 
 MINISATP_CXXFLAGS = -IADTs -include Global.h -include Main.h -D_FILE_OFFSET_BITS=64 -D __STDC_LIMIT_MACROS -Wall -Wno-parentheses -Wextra  $(MCL_INCLUDE) $(MINISAT_INCLUDE)
 MINISATP_LDFLAGS  = -Wall  $(MCL_LIB) $(MINISAT_LIB) -lz -lgmp

@@ -160,6 +160,7 @@ void ExtSimpSolver::printVarsCls(bool encoding, const vec<Pair<weight_t, Minisat
     else
         printf("c |  Number of clauses:    %12d (incl. %12d soft in queue)      |\n", cnt + soft_cnt, soft_cnt);
     printf("c ===============================================================================\n");
+    fflush(stdout);
 }
 
 //=================================================================================================

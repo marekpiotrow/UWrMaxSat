@@ -435,6 +435,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 {
     extern bool   opt_force_scip, opt_use_scip_slvr, opt_scip_parallel;
     extern double opt_scip_delay;
+    bool opt_alternating_bin_search = (opt_minimization == 1 && opt_to_bin_search);
 
     if (!okay() || nVars() == 0) {
         if (opt_verbosity >= 1) {
@@ -499,6 +500,13 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             assump_ps.push(assump_lit);
         }
         if (opt_verbosity >= 1 && soft_cls.size() == 0) sat_solver.printVarsCls();
+#ifdef USE_SCIP
+#ifdef CADICAL
+    if (opt_scip_delay > 0) sat_solver.limitTime(opt_scip_delay + 1);
+#else
+    if (opt_scip_delay > 0) limitTime(cpuTime() + opt_scip_delay + 1);
+#endif
+#endif
         lbool status = satSolveLimited(assump_ps);
         best_goalvalue = (status == l_True ? fixed_goalval : Int_MAX);
         if (status == l_True) {
@@ -734,6 +742,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     extern bool opt_scip_parallel;
     do { // a loop to process GBMO splitting points
     while (1) {
+        if (opt_minimization != 1 && opt_to_bin_search && opt_alternating_bin_search)
+            opt_minimization = 2 - opt_minimization;
 #ifdef USE_SCIP
       if (scip_solver.must_be_started && cpuTime() >= start_solving_cpu + opt_scip_delay) {
         scip_solver.must_be_started = false;
@@ -1237,6 +1247,7 @@ SwitchSearchMethod:
                         reportf("Processing the first GBMO subgoal with %d literals (linear search)\n", goal_ps.size()); 
                     gbmo_goalval = gbmo_remain_weight;
                     opt_minimization = 0;
+                    opt_alternating_bin_search = false;
                 }
                 if (satisfied) {
                     try_lessthan = best_goalvalue; 

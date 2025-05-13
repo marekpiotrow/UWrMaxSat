@@ -22,7 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define MAIN_UTILS_H
 
 #ifndef UWR_VERSION
-#define UWR_VERSION "1.7.2"
+#define UWR_VERSION "1.7.3"
 #endif
 
 extern bool   opt_model_out;

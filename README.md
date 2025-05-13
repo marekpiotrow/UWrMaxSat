@@ -43,8 +43,8 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tar zxvf scipoptsuite-9.2.1.tgz  
-        cd scipoptsuite-9.2.1  
+        tar zxvf scipoptsuite-9.2.2.tgz  
+        cd scipoptsuite-9.2.2  
         mkdir build && cd build  
         cmake -DSYM=nauty -DSHARED=off -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DTPI=tny ..  
         cmake --build . --config Release --target libscip libsoplex-pic  

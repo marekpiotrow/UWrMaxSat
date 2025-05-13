@@ -92,7 +92,7 @@ public:
 #elif defined(MERGESAT)
         "c Using MergeSat SAT solver by Norbert Manthey (2022)\n"
 #elif defined(CADICAL)
-        "c Using %s SAT solver by Armin Biere (2022)\n", solver->signature()
+        "c Using %s SAT solver by Armin Biere et al. (2016 - )\n", solver->signature()
 #elif defined(GLUCOSE4)
         "c Using Glucose 4.1 SAT solver by Gilles Audemard and Laurent Simon (2014)\n"
 #elif defined(CRYPTOMS)
