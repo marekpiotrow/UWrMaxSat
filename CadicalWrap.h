@@ -84,7 +84,7 @@ public:
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
         CaDiCaL::Signal::reset_alarm();
         if (time_limit != INT32_MAX) {
-            CaDiCaL::Signal::alarm(time_limit);
+            CaDiCaL::Signal::alarm(time_limit - int(cpuTime()));
             CaDiCaL::Signal::set(&alarm_term);
             solver->connect_terminator(&alarm_term);
         } else CaDiCaL::Signal::alarm(0);

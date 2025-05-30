@@ -76,7 +76,7 @@ lbool add_constr(SCIP *scip,
                         const std::string &const_name)
 {
     SCIP_CONS *cons = nullptr;
-    MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, const_name.c_str(), 0, nullptr, nullptr, 0, SCIPinfinity(scip)));
+    MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(), nullptr, 0, nullptr, nullptr, 0, nullptr, nullptr, nullptr, 1.0, FALSE, nullptr, -SCIPinfinity(scip), SCIPinfinity(scip)));
     int lhs = 1;
     for (int j = 0; j < ps.size(); j++)
     {
@@ -84,10 +84,10 @@ lbool add_constr(SCIP *scip,
         if (solver->value(lit) == l_False) continue;
         if (set_scip_var(scip, solver, vars, lit)== l_False) return l_False;
         auto v = vars[var(lit)];
-        MY_SCIP_CALL(SCIPaddCoefLinear(scip, cons, v, sign(lit) ? -1 : 1));
+        MY_SCIP_CALL(SCIPaddCoefPseudoboolean(scip, cons, v, sign(lit) ? -1 : 1));
         if (sign(lit)) lhs--;
     }
-    MY_SCIP_CALL(SCIPchgLhsLinear(scip, cons, lhs));
+    MY_SCIP_CALL(SCIPchgLhsPseudoboolean(scip, cons, lhs));
     MY_SCIP_CALL(SCIPaddCons(scip, cons));
     MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
     return l_Undef;
@@ -103,7 +103,7 @@ lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
     SCIP_Real lhs = (c.lo == Int_MIN ? -SCIPinfinity(scip) : tolong(c.lo)), 
               rhs = (c.hi == Int_MAX ?  SCIPinfinity(scip) : tolong(c.hi));
     SCIP_CONS *cons = nullptr;
-    MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, const_name.c_str(), 0, nullptr, nullptr, lhs, rhs));
+    MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(), nullptr, 0, nullptr, nullptr, 0, nullptr, nullptr, nullptr, 1.0, FALSE, nullptr, -SCIPinfinity(scip), SCIPinfinity(scip)));
     for (int j = 0; j < c.size; j++)
     {
         Lit lit = c[j];
@@ -111,11 +111,11 @@ lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
         if (set_scip_var(scip, solver, scip_solver.vars, lit)== l_False) return l_False;
         auto v = scip_solver.vars[var(lit)];
         SCIP_Real coeff = tolong(c(j));
-        MY_SCIP_CALL(SCIPaddCoefLinear(scip, cons, v, sign(lit) ? -coeff : coeff));
+        MY_SCIP_CALL(SCIPaddCoefPseudoboolean(scip, cons, v, sign(lit) ? -coeff : coeff));
         if (sign(lit)) lhs -= coeff, rhs -= coeff;
     }
-    MY_SCIP_CALL(SCIPchgLhsLinear(scip, cons, lhs));
-    MY_SCIP_CALL(SCIPchgRhsLinear(scip, cons, rhs));
+    MY_SCIP_CALL(SCIPchgLhsPseudoboolean(scip, cons, lhs));
+    MY_SCIP_CALL(SCIPchgRhsPseudoboolean(scip, cons, rhs));
     MY_SCIP_CALL(SCIPaddCons(scip, cons));
     MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
   }
@@ -262,7 +262,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                     }
                 }
             }
-            if (!scip_solver->interrupted && lbound != INT64_MIN &&  try_count > 0 && double(ubound - lbound)/ubound < 0.10 && ubound - lbound < bound_gap) {
+            if (!scip_solver->interrupted && lbound != INT64_MIN &&  try_count > 0 && double(ubound - lbound)/max(int64_t(1),max(abs(lbound),abs(ubound))) < 0.10 && ubound - lbound < bound_gap) {
                 try_count--; opt_scip_cpu += opt_scip_cpu_add;
                 bound_gap = ubound - lbound;
                 MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", opt_scip_cpu));
@@ -371,7 +371,11 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
-
+    if (declared_intsize > 0 && declared_intsize < 49) {
+        SCIP_Real feastol = pow(0.5,declared_intsize);
+        if (feastol < 1e-06)
+            MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/feastol", feastol));
+    }
     scip_solver.model.resize(sat_orig_vars);
     for (Var x = sat_orig_vars - 1; x >= 0; x--) scip_solver.model[x] = sat_solver.value(x);
 
@@ -467,7 +471,8 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     // 4. set objective
     if (opt_verbosity >= 2)
         reportf("SCIPobj: soft_cls.size=%u, assump_ps->size=%u, delayed_assump.size=%u, goal_gcd=%ld, hard_cls=%d\n", 
-            top_for_strat, assump_ps->size(), delayed_assump->getHeap().size() - 1, goal_gcd, sat_orig_cls);
+            top_for_strat, assump_ps->size(), delayed_assump->getHeap().size() - 1, fromweight(goal_gcd),
+            sat_orig_cls);
     if (opt_maxsat) {
         for (int i = 0; i < assump_ps->size(); ++i)
             if (set_var_coef((*assump_ps)[i], tolong((*assump_Cs)[i])) == l_False) return l_False;
@@ -481,7 +486,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     }
     if (opt_verbosity >= 2)
         reportf("SCIPobj: obj_var=%d, obj_offset=%" PRId64 ", ob_offset_to_add: %ld %ld\n", obj_vars, obj_offset,
-                goal_gcd * tolong(fixed_goalval), goal_gcd*tolong(harden_goalval));
+                fromweight(goal_gcd) * tolong(fixed_goalval), fromweight(goal_gcd) * tolong(harden_goalval));
     if (opt_maxsat)
         obj_offset += fromweight(goal_gcd) * tolong(fixed_goalval + harden_goalval);
     else
@@ -494,7 +499,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             (opt_scip_parallel? "in a separate thread" : ""), opt_scip_cpu);
 
     scip_solver.obj_offset = obj_offset;
-    if (opt_scip_delay > cpuTime()) {
+    if (opt_scip_delay > cpuTime() + 1) {
         scip_solver.must_be_started = true;
         if (!ipamir_used || opt_verbosity > 0) reportf("SCIP start delayed for at least %.0fs\n", opt_scip_delay - cpuTime());  
         return l_Undef;
