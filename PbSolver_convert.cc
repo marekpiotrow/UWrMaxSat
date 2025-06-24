@@ -31,6 +31,8 @@ Formula buildConstraint(const Linear& c, bool soft_constr = true, int max_cost =
 Formula convertToBdd   (const Linear& c, int max_cost = INT_MAX);   // From: PbSolver_convertBdd.C
 //-------------------------------------------------------------------------------------------------
 
+extern void handlerOutputResult(const PbSolver& S, bool optimum);
+
 void clear_shared_formulas() {
     extern void clear_clausifier_static_maps();
 
@@ -93,6 +95,7 @@ bool PbSolver::convertPbs(bool first_call)
 	    if (opt_convert != ct_Adders)  { opt_convert = ct_Adders; continue; }
             else {
 	        reportf("Out of memery in converting constraints: %s\n",ba.what());
+                handlerOutputResult(*this, false);
 	        _Exit(0);
 	    }
         }
@@ -114,6 +117,7 @@ bool PbSolver::convertPbs(bool first_call)
             reportf("New vars/cls: %d/%d\n", -nvars, -ncls);
     } catch (std::bad_alloc& ba) {
       reportf("Out of memery in clausifying constraints: %s\n",ba.what());
+      handlerOutputResult(*this, false);
       _Exit(0);
     }
     return okay();

@@ -445,6 +445,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 #ifdef USE_SCIP
     extern bool   opt_force_scip, opt_use_scip_slvr, opt_scip_parallel;
     extern double opt_scip_delay;
+    bool          start_delayed_scip_solver = false;
 #endif
     bool opt_alternating_bin_search = (opt_minimization == 1 && opt_to_bin_search);
     bool pb_decision_problem = (!opt_maxsat && !ipamir_used && soft_cls.size() == 0);
@@ -471,9 +472,10 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             reportf("Converting %d PB-constraints to clauses...\n", constrs.size());
         propagate();
 #ifdef USE_SCIP
-        if (opt_use_scip_slvr && declared_intsize <= std::numeric_limits<double>::digits) {
+        if (opt_use_scip_slvr && declared_intsize <= std::numeric_limits<double>::digits - 6) {
             opt_force_scip = true;
             scip_init(scip_solver, sat_solver.nVars());
+            scip_solver.pb_decision_problem = pb_decision_problem;
             if (opt_scip_parallel && opt_scip_delay == 0) {
                 Minisat::vec<Lit> assump_ps;
                 vec<Int> assump_Cs;
@@ -758,8 +760,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (opt_minimization != 1 && opt_to_bin_search && opt_alternating_bin_search)
             opt_minimization = 2 - opt_minimization;
 #ifdef USE_SCIP
-      if (scip_solver.must_be_started && cpuTime() >= opt_scip_delay) {
-        scip_solver.must_be_started = false;
+      if (scip_solver.must_be_started && (cpuTime() >= opt_scip_delay || start_delayed_scip_solver)) {
+        scip_solver.must_be_started = start_delayed_scip_solver = false;
         if (opt_cpu_lim > cpuTime()) LimitTime(opt_cpu_lim); else break;
         sat_solver.clearInterrupt();
         if (asynch_interrupt)
@@ -833,6 +835,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 sat_solver.clearInterrupt();
                 asynch_interrupt = cpu_interrupt = false; LimitTime(opt_cpu_lim);
             }
+            start_delayed_scip_solver = true;
             continue;
         }
 #endif

@@ -178,6 +178,10 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
         SCIP_SOL *sol = SCIPgetBestSol(scip_solver->scip);
         assert(sol != nullptr);
         // MY_SCIP_CALL(SCIPprintSol(scip_solver->scip, sol, nullptr, FALSE));
+        SCIP_Bool feasible = FALSE;
+        MY_SCIP_CALL(SCIPcheckSolOrig(scip_solver->scip, sol, &feasible, FALSE, FALSE));
+        if (!feasible) { found_opt = l_Undef; goto clean_and_return; }
+
         best_value = scip_solver->obj_offset + long(round(SCIPgetSolOrigObj(scip_solver->scip, sol)));
         for (Var x = 0; x < (int)scip_solver->vars.size(); x++)
         {
@@ -236,7 +240,9 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
             SCIP_SOL *sol = SCIPgetBestSol(scip_solver->scip);
             if (sol != nullptr) {
                 Int scip_sol = (scip_solver->obj_offset + int64_t(round(SCIPgetSolOrigObj(scip_solver->scip, sol))))/gcd;
-                if (scip_sol < solver->best_goalvalue) {
+                SCIP_Bool feasible = FALSE;
+                MY_SCIP_CALL(SCIPcheckSolOrig(scip_solver->scip, sol, &feasible, FALSE, FALSE));
+                if (feasible && scip_sol < solver->best_goalvalue) {
                     for (Var x = 0; x < (int)scip_solver->vars.size(); x++)
                         if (scip_solver->vars[x] != nullptr) {
                             SCIP_Real v = SCIPgetSolVal(scip_solver->scip, sol, scip_solver->vars[x]);
@@ -280,7 +286,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
         std::lock_guard<std::mutex> lck(optsol_mtx);
 	char test = OPT_NONE;
         if (opt_finder.compare_exchange_strong(test, OPT_SCIP)) {
-	    if (!solver->ipamir_used || opt_verbosity > 0) 
+	    if (!scip_solver->pb_decision_problem && (!solver->ipamir_used || opt_verbosity > 0)) 
 		    reportf("SCIP optimum (rounded): %" PRId64 "\n", best_value);
 	    solver->best_goalvalue = best_value;
             vec<lbool> opt_model(scip_solver->model.size()); 
@@ -293,14 +299,14 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
             solver->best_goalvalue = (solver->fixed_goalval + evalGoal(solver->soft_cls, solver->best_model, soft_unsat)) * solver->goal_gcd;
 
 	    extern bool opt_satisfiable_out;
-	    opt_satisfiable_out = false;
+	    opt_satisfiable_out = scip_solver->pb_decision_problem;
 
             if (opt_verbosity >= 1) {
                 printScipStats(scip_solver);
                 solver->printStats(false);
             }
             if (!solver->ipamir_used) {
-                outputResult(*solver, true);
+                outputResult(*solver, !scip_solver->pb_decision_problem);
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 //MY_SCIP_CALL(SCIPfree(&scip_solver->scip));
                 std::_Exit(30);
@@ -372,9 +378,16 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
     if (declared_intsize > 0 && declared_intsize < 49) {
-        SCIP_Real feastol = pow(0.5,declared_intsize);
-        if (feastol < 1e-06)
-            MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/feastol", feastol));
+        SCIP_Real feastol, newfeastol = pow(0.5,declared_intsize), epsilon, sumepsilon;
+        MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/feastol", &feastol));
+        MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/epsilon", &epsilon));
+        MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/sumepsilon", &sumepsilon));
+        if (newfeastol < feastol)
+            MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/feastol", newfeastol));
+        if (newfeastol < epsilon)
+            MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/epsilon", newfeastol));
+        if (newfeastol < sumepsilon)
+            MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/sumepsilon", newfeastol));
     }
     scip_solver.model.resize(sat_orig_vars);
     for (Var x = sat_orig_vars - 1; x >= 0; x--) scip_solver.model[x] = sat_solver.value(x);
@@ -499,7 +512,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             (opt_scip_parallel? "in a separate thread" : ""), opt_scip_cpu);
 
     scip_solver.obj_offset = obj_offset;
-    if (opt_scip_delay > cpuTime() + 1) {
+    if (opt_scip_delay > cpuTime() + 10) {
         scip_solver.must_be_started = true;
         if (!ipamir_used || opt_verbosity > 0) reportf("SCIP start delayed for at least %.0fs\n", opt_scip_delay - cpuTime());  
         return l_Undef;

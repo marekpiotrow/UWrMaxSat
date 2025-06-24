@@ -30,13 +30,14 @@ struct ScipSolver {
     std::vector<SCIP_VAR *>  vars;
     std::vector<lbool>       model;
     int64_t                  obj_offset;
+    bool                     pb_decision_problem;
     bool                     must_be_started;
     bool                     started;
     bool                     interrupted;
     std::future<lbool>       asynch_result;
 
-    ScipSolver() : scip(nullptr), obj_offset(0), must_be_started(false), started(false),
-                   interrupted(false) {}
+    ScipSolver() : scip(nullptr), obj_offset(0), pb_decision_problem(false), must_be_started(false),
+                   started(false), interrupted(false) {}
 } ;
 
 void  scip_interrupt_solve(ScipSolver &scip);

@@ -120,8 +120,8 @@ template<class T> macro T* xmalloc(size_t size) {
     T*   tmp = (T*)malloc(size * sizeof(T));
     assert(size == 0 || tmp != NULL);
     if (size != 0 && tmp == NULL) { // M. Piotrow 11.10.2017
-      exit(0);
-      //std::bad_alloc exc; throw exc;
+      //exit(0);
+      std::bad_alloc exc; throw exc;
     }
     return tmp; }
 
@@ -129,8 +129,8 @@ template<class T> macro T* xrealloc(T* ptr, size_t size) {
     T*   tmp = (T*)realloc((void*)ptr, size * sizeof(T));
     assert(size == 0 || tmp != NULL);
     if (size != 0 && tmp == NULL) { // M. Piotrow 11.10.2017
-      exit(0);
-      //std::bad_alloc exc; throw exc;
+      //exit(0);
+      std::bad_alloc exc; throw exc;
     }
     return tmp; }
 
