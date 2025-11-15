@@ -35,6 +35,7 @@ struct ScipSolver {
     bool                     started;
     bool                     interrupted;
     std::future<lbool>       asynch_result;
+    vec<Lit>                 fixed_vars;
 
     ScipSolver() : scip(nullptr), obj_offset(0), pb_decision_problem(false), must_be_started(false),
                    started(false), interrupted(false) {}

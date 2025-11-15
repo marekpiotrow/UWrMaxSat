@@ -55,6 +55,8 @@ int main(int argc, char** argv)
 #else
     char opt_finder = OPT_NONE;
 #endif
+    reportf("UWrMaxSat version %s -- a MaxSAT and pseudo-Boolean solver\n"
+           "Copyright (c) Marek Piotrów et al. (see option -h)\n", UWR_VERSION);
   try {
     setOptions(argc, argv);
     pb_solver = new MsSolver(true, opt_preprocess);

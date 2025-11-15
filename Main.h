@@ -29,7 +29,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 
 #ifdef USE_SCIP
 #include <mutex>
-extern std::mutex stdout_mtx, optsol_mtx;
+extern std::mutex stdout_mtx, optsol_mtx, fixed_vars_mtx;
 #endif
 
 //=================================================================================================

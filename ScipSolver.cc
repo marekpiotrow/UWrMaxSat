@@ -312,6 +312,26 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                 std::_Exit(30);
             }
         }
+    } else {
+        std::lock_guard<std::mutex> lck(fixed_vars_mtx);
+        int fixed = 0;
+        for (int i = 0; i < (int)scip_solver->vars.size(); i++) {
+            SCIP_VAR *v = scip_solver->vars[i];
+            if (v != nullptr) {
+                SCIP_VAR * trans_var = SCIPvarGetTransVar(v);
+                if (trans_var != nullptr && SCIPvarGetStatus(trans_var) == SCIP_VARSTATUS_FIXED) {
+                    SCIP_Real lb = SCIPvarGetLbGlobal(trans_var),
+                              ub = SCIPvarGetUbGlobal(trans_var);
+                    lbool    val = (SCIPisZero(scip_solver->scip, lb) &&
+                                    SCIPisZero(scip_solver->scip, ub)     ? l_False :
+                                   (SCIPisZero(scip_solver->scip, lb - 1) && 
+                                    SCIPisZero(scip_solver->scip, ub - 1) ? l_True : l_Undef));
+                    if (val != l_Undef) 
+                        scip_solver->fixed_vars.push(mkLit(i, val == l_False)), ++fixed;
+                }
+            }
+        }
+        if (opt_verbosity >= 2 && fixed > 0) reportf("SCIP fixed %d vars\n", fixed);
     }
 clean_and_return:
     // release SCIP vars

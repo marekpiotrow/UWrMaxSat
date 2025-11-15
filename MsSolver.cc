@@ -550,7 +550,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 if (soft_cls[i].snd->size() > 1)
                     best_model[var(soft_cls[i].snd->last())] = !sign(soft_cls[i].snd->last());
             Minisat::vec<Lit> soft_unsat;
-            sat_solver.optimizeModel(soft_cls, best_model, 0, soft_cls.size() - 1);
             best_goalvalue = fixed_goalval + evalGoal(soft_cls, best_model, soft_unsat);
             char* tmp = toString(best_goalvalue);
             if (opt_satisfiable_out && (opt_satlive || opt_verbosity == 0))
@@ -593,7 +592,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     Lit assump_lit = lit_Undef;
     Int     try_lessthan = opt_goal, max_assump_Cs = Int_MIN;
     int     n_solutions = 0;    // (only for AllSolutions mode)
-    vec<Pair<Lit,int> > psCs;
     vec<int8_t> multi_level_opt;
     vec<Int> gbmo_splitting_weights, gbmo_remain_goal_Cs;
     vec<Lit> gbmo_remain_goal_ps;
@@ -757,9 +755,18 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     lbool status;
     do { // a loop to process GBMO splitting points
     while (1) {
-        if (opt_minimization != 1 && opt_to_bin_search && opt_alternating_bin_search)
-            opt_minimization = 2 - opt_minimization;
+      if (opt_minimization != 1 && opt_to_bin_search && opt_alternating_bin_search)
+        opt_minimization = 2 - opt_minimization;
 #ifdef USE_SCIP
+      {
+           std::lock_guard<std::mutex> lck(fixed_vars_mtx);
+           if (scip_solver.fixed_vars.size() > 0) {
+             for (int i = scip_solver.fixed_vars.size() - 1; i >= 0; i--)
+               if (sat_solver.value(var(scip_solver.fixed_vars[i])) == l_Undef)
+                   addUnitClause(scip_solver.fixed_vars[i]);
+             scip_solver.fixed_vars.clear();
+           }
+      }
       if (scip_solver.must_be_started && (cpuTime() >= opt_scip_delay || start_delayed_scip_solver)) {
         scip_solver.must_be_started = start_delayed_scip_solver = false;
         if (opt_cpu_lim > cpuTime()) LimitTime(opt_cpu_lim); else break;

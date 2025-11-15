@@ -17,7 +17,7 @@ MCL_INCLUDE?=
 MCL_LIB?=
 endif
 ifneq ($(USESCIP),)
-MCL_INCLUDE+=-I/d/SCIPOptSuite-9.2.2/include
-MCL_LIB+= -L/d/SCIPOptSuite-9.2.2/lib -lscip
+MCL_INCLUDE+=-I/d/SCIPOptSuite-9.2.4/include
+MCL_LIB+= -L/d/SCIPOptSuite-9.2.4/lib -lscip
 endif
 prefix?=

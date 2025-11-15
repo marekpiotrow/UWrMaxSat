@@ -17,7 +17,7 @@ MCL_INCLUDE?=
 MCL_LIB?=
 endif
 ifneq ($(USESCIP),)
-MCL_INCLUDE+=-I../scipoptsuite-9.2.2/scip/src -I../scipoptsuite-9.2.2/build/scip
-MCL_LIB+=-L../scipoptsuite-9.2.2/build/lib -lscip -lsoplex-pic
+MCL_INCLUDE+=-I../scipoptsuite-9.2.4/scip/src -I../scipoptsuite-9.2.4/build/scip
+MCL_LIB+=-L../scipoptsuite-9.2.4/build/lib -lscip -lsoplex-pic
 endif
 prefix?=

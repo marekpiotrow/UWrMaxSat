@@ -43,7 +43,7 @@ Read a DIMACS file and apply the SAT-solver to it.
 
 #ifdef USE_SCIP
 #include <mutex>
-std::mutex stdout_mtx, optsol_mtx;
+std::mutex stdout_mtx, optsol_mtx, fixed_vars_mtx;
 #endif
 
 //=================================================================================================
@@ -110,7 +110,6 @@ double   opt_scip_delay = 0;
 #endif
 
 char*    opt_input  = NULL;
-char*    opt_result = NULL;
 
 // -- statistics;
 unsigned long long int srtEncodings = 0, addEncodings = 0, bddEncodings = 0;
@@ -397,12 +396,11 @@ PbSolver::solve_Command convert(Command cmd) {
 
 static cchar* doc =
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
-    "UWrMaxSat %s -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-2024)\n" 
+    "UWrMaxSat %s -- University of Wrocław MaxSAT solver by Marek Piotrów (2019-%d)\n" 
     "and PB solver by Marek Piotrów and Michał Karpiński (2018) -- an extension of\n"
     "MiniSat+ 1.1, based on MiniSat 2.2.0  -- (C) Niklas Een, Niklas Sorensson (2012)\n"
-    "with COMiniSatPS by Chanseok Oh (2016) as the SAT solver\n"
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
-    "USAGE: uwrmaxsat <input-file> [<result-file>] [-<option> ...]\n"
+    "USAGE: uwrmaxsat <input-file> [-<option> ...]\n"
     "\n"
     "Solver options:\n"
     "  -ca -adders   Convert PB-constrs to clauses through adders.\n"
@@ -500,12 +498,15 @@ static bool oneof(cchar* arg, cchar* alternatives)
 static void parseOptions(int argc, char** argv, bool check_files)
 {
     vec<char*>  args;   // Non-options
+    std::time_t t = std::time(nullptr);
+    std::tm *const pTInfo = std::localtime(&t);
+    int lyear = 1900 + pTInfo->tm_year;
 
     for (int i = 1; i < argc; i++){
         char*   arg = argv[i];
         if (arg[0] == '-'){
             if (oneof(arg,"h,help")) 
-                fprintf(stderr, doc, UWR_VERSION, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
+                fprintf(stderr, doc, UWR_VERSION, lyear, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
                         opt_base_max, opt_unsat_conflicts, opt_coremin_cfl, opt_coremin_1cfl
 #ifdef MAXPRE
                         , opt_maxpre_str
@@ -609,7 +610,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
     }
 
     if (args.size() == 0 && check_files)
-        fprintf(stderr, doc, UWR_VERSION, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
+        fprintf(stderr, doc, UWR_VERSION, lyear, opt_bdd_thres, opt_sort_thres, opt_goal_bias, opt_base_max, 
                         opt_base_max, opt_unsat_conflicts, opt_coremin_cfl, opt_coremin_1cfl
 #ifdef MAXPRE
                         , opt_maxpre_str
@@ -622,11 +623,9 @@ static void parseOptions(int argc, char** argv, bool check_files)
 #ifdef USE_SCIP
     if (opt_command != cmd_Minimize || opt_output_top > 0) opt_use_scip_slvr = false;
 #endif
-    if (args.size() >= 1)
+    if (args.size() == 1)
         opt_input = args[0];
-    if (args.size() == 2)
-        opt_result = args[1];
-    else if (args.size() > 2)
+    else if (args.size() > 1)
         fprintf(stderr, "ERROR! Too many files specified on commandline.\n"),
         exit(0);
 }

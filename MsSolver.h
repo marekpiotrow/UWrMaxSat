@@ -126,6 +126,7 @@ class MsSolver final : public PbSolver {
     Int                 scip_LB, scip_UB;// When SCIP timeouts, they will contains lower and upper bounds computed by SCIP
     vec<Pair<weight_t, Minisat::vec<Lit>* > > orig_soft_cls; // Soft clauses before preprocessing by MaxPre; empty if MaxPre is not used
     vec<Pair<weight_t, Minisat::vec<Lit>* > > soft_cls; // Relaxed non-unit soft clauses with weights; a relaxing var is the last one in a vector. 
+    vec<Pair<Lit,int> > psCs;     // sorted soft literals with indices to soft_cls
     weight_t            goal_gcd; // gcd of soft_cls weights
     int                 top_for_strat, top_for_hard; // Top indices to soft_cls for stratification and hardening operations.
     int                 last_soft_added_to_sat; // An index tp soft_cls, above which soft clauses of length > 1 are added to sat solver.
