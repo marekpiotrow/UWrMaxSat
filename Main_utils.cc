@@ -106,7 +106,7 @@ double   opt_scip_cpu_add  = 600;
 bool     opt_scip_parallel = true;
 time_t   wall_clock_time;
 bool     opt_force_scip = false;
-double   opt_scip_delay = 0;
+double   opt_scip_delay = 120;
 #endif
 
 char*    opt_input  = NULL;
@@ -467,7 +467,7 @@ static cchar* doc =
     "  -scip-cpu-add= Time in seconds for SCIP solver to increase timeout if the gap <= 10%%. [def: %gs]\n"
     "  -no-par       Do not run SCIP solver in a separate thread. Timeout is changed to %gs if not set by user. \n" 
     "  -force-scip   Force to run SCIP solver. (The default setting is to use it for small instances.)\n"
-    "  -scip-delay=  Time in seconds to delay SCIP start. Zero - no delay (default)\n"
+    "  -scip-delay=  Time in seconds to delay SCIP start. Zero - no delay. [def: %gs]\n"
 #endif
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
 ;
@@ -514,6 +514,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
 #ifdef USE_SCIP
                         , opt_scip_cpu_add
                         , opt_scip_cpu_default
+                        , opt_scip_delay
 #endif
                         ), exit(0);
 
@@ -618,6 +619,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
 #ifdef USE_SCIP
                         , opt_scip_cpu_add
                         , opt_scip_cpu_default
+                        , opt_scip_delay
 #endif
                         ), exit(0);
 #ifdef USE_SCIP

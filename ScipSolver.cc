@@ -145,6 +145,29 @@ lbool printScipStats(ScipSolver *scip_solver)
     return l_Undef;
 }
 
+void saveFixedVariables(ScipSolver *scip_solver)
+{
+    std::lock_guard<std::mutex> lck(fixed_vars_mtx);
+    int fixed = 0;
+    for (int i = 0; i < (int)scip_solver->vars.size(); i++) {
+        SCIP_VAR *v = scip_solver->vars[i];
+        if (v != nullptr) {
+            SCIP_VAR * trans_var = SCIPvarGetTransVar(v);
+            if (trans_var != nullptr && SCIPvarGetStatus(trans_var) == SCIP_VARSTATUS_FIXED) {
+                SCIP_Real lb = SCIPvarGetLbGlobal(trans_var),
+                          ub = SCIPvarGetUbGlobal(trans_var);
+                lbool    val = (SCIPisZero(scip_solver->scip, lb) &&
+                        SCIPisZero(scip_solver->scip, ub)     ? l_False :
+                        (SCIPisZero(scip_solver->scip, lb - 1) && 
+                         SCIPisZero(scip_solver->scip, ub - 1) ? l_True : l_Undef));
+                if (val != l_Undef) 
+                    scip_solver->fixed_vars.push(mkLit(i, val == l_False)), ++fixed;
+            }
+        }
+    }
+    if (opt_verbosity >= 2 && fixed > 0) reportf("SCIP fixed %d vars\n", fixed);
+}
+
 lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
 {
     extern double opt_scip_cpu, opt_scip_cpu_add;
@@ -218,7 +241,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                 int64_t(round(dualb)) + scip_solver->obj_offset : INT64_MIN);
         int64_t ubound = (!SCIPisInfinity(scip_solver->scip, primb) ? 
                 int64_t(round(primb)) + scip_solver->obj_offset : INT64_MAX);
-        if (opt_finder.load() != OPT_MSAT && (!solver->ipamir_used || opt_verbosity > 0))
+        if (opt_finder.load() != OPT_MSAT && opt_scip_cpu > 0 && (!solver->ipamir_used || opt_verbosity > 0))
             reportf("SCIP timeout with lower and upper bounds: [%lld, %lld]\n", lbound, ubound);
         int64_t gcd = fromweight(solver->goal_gcd);
         if (!SCIPisInfinity(scip_solver->scip, dualb)) {
@@ -268,7 +291,9 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                     }
                 }
             }
-            if (!scip_solver->interrupted && lbound != INT64_MIN &&  try_count > 0 && double(ubound - lbound)/max(int64_t(1),max(abs(lbound),abs(ubound))) < 0.10 && ubound - lbound < bound_gap) {
+            if (!scip_solver->interrupted && opt_scip_cpu > 0 && lbound != INT64_MIN && try_count > 0 && 
+                  double(ubound - lbound)/max(int64_t(1),max(abs(lbound),abs(ubound))) < 0.10 &&
+                  ubound - lbound < bound_gap) {
                 try_count--; opt_scip_cpu += opt_scip_cpu_add;
                 bound_gap = ubound - lbound;
                 MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", opt_scip_cpu));
@@ -277,6 +302,11 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                     reportf("Restarting SCIP solver (with time-limit: %.0fs) ...\n", opt_scip_cpu);
                 try_again = true;
             }
+        }
+        if (opt_scip_cpu == 0 && !scip_solver->interrupted) {
+            saveFixedVariables(scip_solver);
+            MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", 1e+20));
+            try_again = true;
         }
     }
     } while (try_again);
@@ -312,27 +342,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                 std::_Exit(30);
             }
         }
-    } else {
-        std::lock_guard<std::mutex> lck(fixed_vars_mtx);
-        int fixed = 0;
-        for (int i = 0; i < (int)scip_solver->vars.size(); i++) {
-            SCIP_VAR *v = scip_solver->vars[i];
-            if (v != nullptr) {
-                SCIP_VAR * trans_var = SCIPvarGetTransVar(v);
-                if (trans_var != nullptr && SCIPvarGetStatus(trans_var) == SCIP_VARSTATUS_FIXED) {
-                    SCIP_Real lb = SCIPvarGetLbGlobal(trans_var),
-                              ub = SCIPvarGetUbGlobal(trans_var);
-                    lbool    val = (SCIPisZero(scip_solver->scip, lb) &&
-                                    SCIPisZero(scip_solver->scip, ub)     ? l_False :
-                                   (SCIPisZero(scip_solver->scip, lb - 1) && 
-                                    SCIPisZero(scip_solver->scip, ub - 1) ? l_True : l_Undef));
-                    if (val != l_Undef) 
-                        scip_solver->fixed_vars.push(mkLit(i, val == l_False)), ++fixed;
-                }
-            }
-        }
-        if (opt_verbosity >= 2 && fixed > 0) reportf("SCIP fixed %d vars\n", fixed);
-    }
+    } else saveFixedVariables(scip_solver);
 clean_and_return:
     // release SCIP vars
     for (auto v: scip_solver->vars)
@@ -369,7 +379,7 @@ public:
 
 lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
 {
-    extern double opt_scip_cpu;
+    extern double opt_scip_cpu, opt_scip_cpu_add;
     extern bool opt_force_scip;
 
     if (scip_solver.scip != nullptr) return l_Undef;
@@ -395,6 +405,8 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
     MY_SCIP_CALL(SCIPsetEmphasis(scip, SCIP_PARAMEMPHASIS_DEFAULT, TRUE));
     if (opt_scip_cpu > 0) 
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
+    else
+        MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu_add));
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
     if (declared_intsize > 0 && declared_intsize < 49) {
