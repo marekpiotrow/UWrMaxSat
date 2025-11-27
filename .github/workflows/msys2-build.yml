@@ -33,6 +33,7 @@ jobs:
         cd ..
         git clone https://github.com/arminbiere/cadical
         cd cadical
+        git checkout rel-2.2.0-backports
         patch -p1 <../uwrmaxsat/cadical.patch
         ./configure
         make cadical

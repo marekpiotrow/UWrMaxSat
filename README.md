@@ -24,6 +24,7 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
 2. clone and build the CaDiCaL SAT solver by Armin Biere:  
     git clone https://github.com/arminbiere/cadical  
     cd cadical  
+    git checkout rel-2.2.0-backports  
     patch -p1 <../uwrmaxsat/cadical.patch  
     ./configure --no-contracts --no-tracing  
     make cadical  

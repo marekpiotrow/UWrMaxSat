@@ -24,6 +24,7 @@ jobs:
       run: |
         cd ..
         git clone https://github.com/arminbiere/cadical
+        git checkout rel-2.2.0-backports
         cd cadical
         patch -p1 <../uwrmaxsat/cadical.patch
         ./configure

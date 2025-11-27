@@ -75,6 +75,8 @@ public:
         verbosity = old_verbosity = solver->get("verbose");
         solver->set("seed",0);
         solver->set("stats",0);
+        solver->set("deduplicateallinit",1);
+        solver->set("luckyassumptions",0);
         solver->prefix("c [CDCL] ");
     }
     ~SimpSolver() { delete solver; }
@@ -115,7 +117,7 @@ public:
     Var newVar(bool polarity = true, bool dvar = true) {
         (void)polarity; (void)dvar;
         Var v = nvars++;
-        solver->reserve((int)(v+1));
+        solver->declare_one_more_variable();
         return v;
     }
     int  nVars() const { return solver->vars(); }
