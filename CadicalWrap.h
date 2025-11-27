@@ -103,7 +103,7 @@ public:
     public:
         vec<uint32_t> elimCls;
     public:
-        bool witness (const std::vector<int> &cl, const std::vector<int> &witness, uint64_t ) {
+        bool witness (const std::vector<int> &cl, const std::vector<int> &witness, int64_t ) {
             for (const int w : witness) elimCls.push(toInt(mkLit(abs(w) - 1, w < 0)));
             elimCls.push(witness.size());
             for (const int c : cl) elimCls.push(toInt(mkLit(abs(c) - 1, c < 0)));
