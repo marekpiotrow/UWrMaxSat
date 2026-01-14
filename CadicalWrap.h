@@ -46,14 +46,12 @@ public:
         bool terminate() { return timesup; }
     } alarm_term;
 
-    int lit2val(Lit p) {
-        return sign(p) ? -var(p)-1 : var(p)+1;
-    }
-
   
 private:
     int nvars, nclauses, old_verbosity;
     vec<int> model;
+    vec<int> var_offset, // offsets between CaDiCaL vars and the corresponding MiniSat vars
+             var_counts; // var_counts[i]: the number of variables with offset <= var_offset[i]
 
     class IpasirTerm : public CaDiCaL::Terminator {
     public:
@@ -73,11 +71,36 @@ public:
         solver = new CaDiCaL::Solver;
         limitTime(opt_cpu_lim);
         verbosity = old_verbosity = solver->get("verbose");
+        var_offset.push(1);
+        var_counts.push(0);
         solver->set("seed",0);
         solver->set("stats",0);
         solver->prefix("c [CDCL] ");
+#if CADICAL_MAJOR >= 3
+        solver->set("luckyassumptions",0);
+        solver->set("deduplicateallinit",1);
+        solver->set("factor",1);
+#endif        
     }
     ~SimpSolver() { delete solver; }
+
+    int lit2val(Lit p) {
+        int i = 0;
+        while (i < var_counts.size() && var(p) >= var_counts[i]) i++;
+        return sign(p) ? -var(p) - var_offset[i] : var(p) + var_offset[i];
+    }
+
+    Var cadical_declared_var(int v) {
+        if (v <= 0 || v >= var_counts.last() + var_offset.last()) return var_Undef;
+        int i = 0;
+        while (v >= var_counts[i] + var_offset[i]) i++;
+        return i > 0 && abs(v) < var_counts[i - 1] + var_offset[i] ? var_Undef : v - var_offset[i];
+    }
+
+    Lit val2lit(int v) {
+        Var p = cadical_declared_var(abs(v));
+        return p == var_Undef ? lit_Undef : mkLit(p, v < 0);
+    }
 
     void limitTime(int time_limit) {
         alarm_term.timesup = false;
@@ -103,7 +126,11 @@ public:
     public:
         vec<uint32_t> elimCls;
     public:
+#if CADICAL_MAJOR >= 3
+        bool witness (const std::vector<int> &cl, const std::vector<int> &witness, int64_t ) {
+#else
         bool witness (const std::vector<int> &cl, const std::vector<int> &witness, uint64_t ) {
+#endif
             for (const int w : witness) elimCls.push(toInt(mkLit(abs(w) - 1, w < 0)));
             elimCls.push(witness.size());
             for (const int c : cl) elimCls.push(toInt(mkLit(abs(c) - 1, c < 0)));
@@ -114,9 +141,18 @@ public:
 
     Var newVar(bool polarity = true, bool dvar = true) {
         (void)polarity; (void)dvar;
-        Var v = nvars++;
-        solver->reserve((int)(v+1));
-        return v;
+        Var evar = nvars++;
+#if CADICAL_MAJOR >= 3
+        int cvar = solver->declare_one_more_variable(); // CaDiCaL new var
+#else
+        int cvar = nvars;
+#endif
+        if (cvar == var_counts.last() + var_offset.last()) var_counts.last()++;
+        else {
+            var_offset.push(cvar - var_counts.last());
+            var_counts.push(var_counts.last() + 1);
+        }
+        return evar;
     }
     int  nVars() const { return solver->vars(); }
     int  nFreeVars() const { return solver->active(); }
@@ -164,8 +200,9 @@ public:
         int ret = solver->solve();
         conflicts = solver->conflicts();
         if (ret == 10) {
-            model.growTo(nvars);
-            for (int v = 0 ; v < nvars; v++) model[v] = solver->val(v + 1);
+            int nv = solver->vars();
+            model.growTo(nv);
+            for (int v = 0 ; v < nv; v++) model[v] = solver->val(v + 1);
         }
         return ret == 10 ? l_True : (ret == 20 ? l_False : l_Undef);
     }
@@ -195,22 +232,24 @@ public:
     bool eliminate(bool) { return solver->simplify() != 20; }
     bool isEliminated(Var) { /* not needed */ return false; }
 
-    lbool value(Var v) const {
-        int val = solver->fixed(v+1);
+    lbool value(Var v) {
+        int cvar = lit2val(mkLit(v));
+        int val = solver->fixed(cvar);
         return val == 0 ? l_Undef : (val > 0 ? l_True : l_False);
     }
-    lbool value(Lit p) const {
+    lbool value(Lit p) {
         lbool val = value(var(p));
         if (sign(p)) 
             if (val == l_True) val = l_False; else if (val == l_False) val = l_True;
         return val;
     }
 
-    lbool modelValue(Var v) const {
-        int val = (v < model.size() ? model[v] : 0);
+    lbool modelValue(Var v) {
+        int cvar = lit2val(mkLit(v));
+        int val = (cvar <= model.size() ? model[cvar - 1] : 0);
         return val == 0 ? l_Undef : (val > 0 ? l_True : l_False);
     }
-    lbool modelValue(Lit p) const {
+    lbool modelValue(Lit p) {
         lbool val = modelValue(var(p));
         if (sign(p)) 
             if (val == l_True) val = l_False; else if (val == l_False) val = l_True;

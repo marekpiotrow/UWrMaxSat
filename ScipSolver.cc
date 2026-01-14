@@ -48,6 +48,11 @@ void scip_interrupt_solve(ScipSolver &scip_solver)
 
 lbool set_scip_var(SCIP *scip, MsSolver *solver, std::vector<SCIP_VAR *> &vars, Lit lit)
 {
+    if (size_t(var(lit)) >= vars.size())
+        vars.resize(var(lit) + 1, nullptr);
+    if (size_t(var(lit)) >= solver->scip_solver.model.size())
+        solver->scip_solver.model.resize(var(lit) + 1);
+
     SCIP_VAR *scip_var = vars[var(lit)];
     if (scip_var == nullptr) {
         Var v = var(lit);
@@ -145,7 +150,7 @@ lbool printScipStats(ScipSolver *scip_solver)
     return l_Undef;
 }
 
-void saveFixedVariables(ScipSolver *scip_solver)
+void saveFixedVariables(ScipSolver *scip_solver, MsSolver *solver)
 {
     std::lock_guard<std::mutex> lck(fixed_vars_mtx);
     int fixed = 0;
@@ -160,8 +165,10 @@ void saveFixedVariables(ScipSolver *scip_solver)
                         SCIPisZero(scip_solver->scip, ub)     ? l_False :
                         (SCIPisZero(scip_solver->scip, lb - 1) && 
                          SCIPisZero(scip_solver->scip, ub - 1) ? l_True : l_Undef));
-                if (val != l_Undef) 
-                    scip_solver->fixed_vars.push(mkLit(i, val == l_False)), ++fixed;
+                Var v = solver->sat_solver.defined_var(i);
+                if (val != l_Undef && v != var_Undef) {
+                    scip_solver->fixed_vars.push(mkLit(v, val == l_False)), ++fixed;
+                }
             }
         }
     }
@@ -304,7 +311,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
             }
         }
         if (opt_scip_cpu == 0 && !scip_solver->interrupted) {
-            saveFixedVariables(scip_solver);
+            saveFixedVariables(scip_solver, solver);
             MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", 1e+20));
             try_again = true;
         }
@@ -342,7 +349,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                 std::_Exit(30);
             }
         }
-    } else saveFixedVariables(scip_solver);
+    } else saveFixedVariables(scip_solver, solver);
 clean_and_return:
     // release SCIP vars
     for (auto v: scip_solver->vars)

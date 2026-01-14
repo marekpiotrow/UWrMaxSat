@@ -34,6 +34,14 @@ static Var mapVar(Var x, Minisat::vec<Var>& map, Var& max)
 }
 #endif
 
+Var ExtSimpSolver::defined_var(int i) {
+#if defined(CADICAL)
+    return cadical_declared_var(i + 1);
+#else
+    return i >= 0 && i < nvars ? i : var_Undef;
+#endif
+}
+
 #if !defined(CADICAL) && !defined(CRYPTOMS)
 const Minisat::Clause& ExtSimpSolver::getClause  (int i, bool &is_satisfied) const
 {
@@ -102,18 +110,18 @@ void ExtSimpSolver::optimizeModel(const vec<Pair<weight_t, Minisat::vec<Lit>* > 
 #if defined(CADICAL)
     extern bool satisfied_soft_cls(Minisat::vec<Lit> *cls, vec<bool>& model);
     Int sum = 0;
-    bool sat = false, opt = false;
+    bool opt = false;
     for (int i = to_soft; i >= from_soft; i--) {
         Lit p = soft_cls[i].snd->last(); if (soft_cls[i].snd->size() == 1) p = ~p;
         assert(var(p) < model.size());
         if ((( sign(p) && !model[var(p)]) || (!sign(p) &&  model[var(p)])) 
-            && !(sat = satisfied_soft_cls(soft_cls[i].snd, model))) {
-            if (solver->flip(var(p) + 1)) model[var(p)] = !model[var(p)], opt = true;
+            && !satisfied_soft_cls(soft_cls[i].snd, model)) {
+            if (solver->flip(abs(lit2val(p)))) model[var(p)] = !model[var(p)], opt = true;
         }
-        if (sat) { sat = false; model[var(p)] = !model[var(p)]; }
     }
     if (opt)
-        for (int v = model.size() - 1 ; v >= 0; v--) model[v] = solver->val(v + 1) > 0;
+        for (int v = model.size() - 1 ; v >= 0; v--)
+            model[v] = solver->val(abs(lit2val(mkLit(v)))) > 0;
 #endif
 }
 
@@ -212,8 +220,8 @@ bool ExtSimpSolver::impliedObservedLits(Lit lit, Minisat::vec<Lit>& props, const
     if (ret != l_False && extPropagator->dec_level > 1) {
         for (const int clit : extPropagator->last_trails[1 - extPropagator->dec_level % 2]) {
             if (clit != 0) {
-                Lit l = mkLit(abs(clit) - 1, clit < 0);
-                if (l != lit) props.push(l);
+                Lit l = val2lit(clit);
+                if (l != lit_Undef && l != lit) props.push(l);
             }
         }
     }

@@ -161,8 +161,8 @@ public:
 
     // Helpers (semi-internal):
     //
-    virtual lbool   value(Var x) const { return sat_solver.value(x); }
-    virtual lbool   value(Lit p) const { return sat_solver.value(p); }
+    virtual lbool   value(Var x) { return sat_solver.value(x); }
+    virtual lbool   value(Lit p) { return sat_solver.value(p); }
     int     nVars()      const { return sat_solver.nVars(); }
     int     nClauses()   const { return sat_solver.nClauses(); }
     int     nConstrs()   const { return constrs.size(); }

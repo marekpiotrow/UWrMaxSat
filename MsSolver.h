@@ -170,8 +170,8 @@ class MsSolver final : public PbSolver {
         else res = sat_solver.addClause(p); 
         return res; 
     }
-    virtual lbool   value(Var x) const { return sat_solver.value(x); }
-    virtual lbool   value(Lit p) const { return sat_solver.value(p); }
+    virtual lbool   value(Var x) { return sat_solver.value(x); }
+    virtual lbool   value(Lit p) { return sat_solver.value(p); }
     bool    addUnit  (Lit p) {
         if (value(p) == l_Undef) trail.push(p);
         return addUnitClause(p);

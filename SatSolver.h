@@ -102,6 +102,7 @@ public:
 #endif
         );
     }
+    Var defined_var(int i); // vars in CaDiCaL 3.0 should be explicitly declared
 #if !defined(CADICAL) && !defined(CRYPTOMS)
     const Minisat::Clause& getClause  (int i, bool &is_satisfied) const;
 #endif
