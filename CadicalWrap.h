@@ -146,6 +146,7 @@ public:
         int cvar = solver->declare_one_more_variable(); // CaDiCaL new var
 #else
         int cvar = nvars;
+        solver->reserve((cvar));
 #endif
         if (cvar == var_counts.last() + var_offset.last()) var_counts.last()++;
         else {
