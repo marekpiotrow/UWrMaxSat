@@ -535,7 +535,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             for (Var x = 0; x < pb_n_vars; x++)
                 assert(sat_solver.modelValue(x) != l_Undef),
                     best_model.push(sat_solver.modelValue(x) == l_True);
-
+#ifdef USE_SCIP
+            if (pb_decision_problem) opt_scip_delay = 0;
+#endif
         }
         if (status == l_Undef && termCallback != nullptr && 0 != termCallback(termCallbackState))
             asynch_interrupt = true;
@@ -862,8 +864,13 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             constrs.clear();
             continue;
         }
+        satisfied = true;
         if (pb_decision_problem) {
-           asynch_interrupt = opt_satisfiable_out = true; break;
+            best_model.clear();
+            for (Var x = 0; x < pb_n_vars; x++)
+                assert(sat_solver.modelValue(x) != l_Undef),
+                    best_model.push(sat_solver.modelValue(x) == l_True);
+           break;
         }
         Int lastCs = 1;
         if(opt_minimization != 1 && assump_ps.size() == 1 && assump_ps.last() == assump_lit) {
@@ -871,7 +878,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
           lastCs = assump_Cs.last();
           assump_ps.pop(); assump_Cs.pop(); assump_lit = lit_Undef;
         }
-        satisfied = true;
 
         if (cmd == sc_AllSolutions){
             Minisat::vec<Lit>    ban;
@@ -1364,9 +1370,14 @@ SwitchSearchMethod:
     if (opt_verbosity >= 1 && opt_output_top < 0){
         if      (!satisfied)
             reportf(asynch_interrupt ? "\bUNKNOWN\b\n" : "\bUNSATISFIABLE\b\n");
-        else if (soft_cls.size() == 0 && best_goalvalue == Int_MAX)
+        else if (soft_cls.size() == 0 && best_goalvalue == Int_MAX) {
             reportf("\bSATISFIABLE: No goal function specified.\b\n");
-        else if (cmd == sc_FirstSolution){
+            if (!ipamir_used)
+                if (pb_decision_problem)    // force a correct output for
+                    opt_satisfiable_out = asynch_interrupt = true; // pseudo-Boolean decision problems
+                else opt_satisfiable_out = false;
+            best_goalvalue = 0;
+        } else if (cmd == sc_FirstSolution){
             char* tmp = toString(best_goalvalue);
             reportf("\bFirst solution found: %s\b\n", tmp);
             xfree(tmp);

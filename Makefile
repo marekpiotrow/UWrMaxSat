@@ -87,7 +87,7 @@ MINISATP_DLIB = libuwrmaxsat.so# Name of MiniSat+ shared library.
 # Shared Library Version
 SOMAJOR=1
 SOMINOR=7
-SORELEASE?=.3#   Declare empty to leave out from library file name.
+SORELEASE?=.4#   Declare empty to leave out from library file name.
 
 MINISATP_CXXFLAGS = -IADTs -include Global.h -include Main.h -D_FILE_OFFSET_BITS=64 -D __STDC_LIMIT_MACROS -Wall -Wno-parentheses -Wextra  $(MCL_INCLUDE) $(MINISAT_INCLUDE)
 MINISATP_LDFLAGS  = -Wall  $(MCL_LIB) $(MINISAT_LIB) -lz -lgmp
