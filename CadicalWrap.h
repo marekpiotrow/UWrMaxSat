@@ -201,9 +201,9 @@ public:
         int ret = solver->solve();
         conflicts = solver->conflicts();
         if (ret == 10) {
-            int nv = solver->vars();
+            int nv = nvars;
             model.growTo(nv);
-            for (int v = 0 ; v < nv; v++) model[v] = solver->val(v + 1);
+            for (int v = 0 ; v < nv; v++) model[v] = solver->val(lit2val(mkLit(v)));
         }
         return ret == 10 ? l_True : (ret == 20 ? l_False : l_Undef);
     }
@@ -246,8 +246,7 @@ public:
     }
 
     lbool modelValue(Var v) {
-        int cvar = lit2val(mkLit(v));
-        int val = (cvar <= model.size() ? model[cvar - 1] : 0);
+        int val = (v < model.size() ? model[v] : 0);
         return val == 0 ? l_Undef : (val > 0 ? l_True : l_False);
     }
     lbool modelValue(Lit p) {
