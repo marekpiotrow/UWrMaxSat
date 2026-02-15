@@ -36,9 +36,14 @@ struct ScipSolver {
     bool                     interrupted;
     std::future<lbool>       asynch_result;
     vec<Lit>                 fixed_vars;
+    vec<Lit>                 gbmo_remain_goal_ps;
+    vec<Int>                 gbmo_remain_goal_Cs, splitting_weights;
+    vec<SCIP_VAR *>          obj_vars;
+    vec<SCIP_Real>           obj_coefs;
 
     ScipSolver() : scip(nullptr), obj_offset(0), pb_decision_problem(false), must_be_started(false),
                    started(false), interrupted(false) {}
+    lbool gbmo_change_objective(MsSolver *solver, int64_t best_value);
 } ;
 
 void  scip_interrupt_solve(ScipSolver &scip);

@@ -155,7 +155,7 @@ public:
         }
         return evar;
     }
-    int  nVars() const { return solver->vars(); }
+    int  nVars() const { return nvars; }
     int  nFreeVars() const { return solver->active(); }
     int  nClauses() const { return solver->irredundant(); }
     void setPolarity(Var p, bool b) {

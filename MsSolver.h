@@ -132,6 +132,7 @@ class MsSolver final : public PbSolver {
     int                 last_soft_added_to_sat; // An index tp soft_cls, above which soft clauses of length > 1 are added to sat solver.
     Map<Lit, Int>       harden_lits;    // The weights of literals included into "At most 1" clauses (MaxSAT preprocessing of soft clauese).
     vec<AtMost1> am1_rels;              // The weights of relaxing vars in "At most 1" clauses
+    vec<Int>            gbmo_splitting_weights; // Generalized Boolean multilevel optimization
     // IPAMIR interface
     vec<Lit>            harden_assump;  // IPAMIR: harden soft literals are put here instead of creating unit clauses
     vec<Lit>            global_assumptions; // IPAMIR: sorted literals used in IPAMIR assumptions are in this vector
@@ -196,4 +197,7 @@ class MsSolver final : public PbSolver {
                                            IntLitQueue& delayed_assump, Int& delayed_assump_sum);
 } ;
 
+Int  evalPsCs(vec<Lit>& ps, vec<Int>&Cs, vec<bool>& model, vec<AtMost1>& am1_rels);
+bool separate_gbmo_subgoal(vec<Int>& splitting_weights, vec<Lit>& goal_ps, vec<Int>& goal_Cs,
+        vec<Lit>& remain_goal_ps, vec<Int>& remain_goal_Cs, Int& remain_weight);
 #endif

@@ -107,6 +107,7 @@ bool     opt_scip_parallel = true;
 time_t   wall_clock_time;
 bool     opt_force_scip = false;
 double   opt_scip_delay = 120;
+bool     opt_scip_gbmo = false;
 #endif
 
 char*    opt_input  = NULL;
@@ -468,6 +469,7 @@ static cchar* doc =
     "  -no-par       Do not run SCIP solver in a separate thread. Timeout is changed to %gs if not set by user. \n" 
     "  -force-scip   Force to run SCIP solver. (The default setting is to use it for small instances.)\n"
     "  -scip-delay=  Time in seconds to delay SCIP start. Zero - no delay. [def: %gs]\n"
+    "  -scip-gbmo    If generalized Boolean multi-level opt points are found, use them to split SCIP objective.\n"
 #endif
     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
 ;
@@ -576,6 +578,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
             else if (strncmp(arg, "-scip-cpu-add=",14) == 0) opt_scip_cpu_add  = atoi(arg+14);
             else if (strncmp(arg, "-scip-delay=",  12) == 0) opt_scip_delay  = atoi(arg+12);
             else if (oneof(arg, "no-par"    )) opt_scip_parallel = false, opt_scip_cpu = (opt_scip_cpu == 0 ? opt_scip_cpu_default : opt_scip_cpu);
+            else if (oneof(arg, "scip-gbmo" )) opt_scip_gbmo = true;
 #endif
             else if (oneof(arg, "s,satlive" )) opt_satlive = false;
             else if (oneof(arg, "a,ansi"    )) opt_ansi    = false;

@@ -22,7 +22,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #define MAIN_UTILS_H
 
 #ifndef UWR_VERSION
-#define UWR_VERSION "1.7.4"
+#define UWR_VERSION "1.8.0"
 #endif
 
 extern bool   opt_model_out;
@@ -52,6 +52,7 @@ extern bool   opt_scip_parallel;
 extern time_t wall_clock_time;
 extern bool   opt_force_scip;
 extern double opt_scip_delay;
+extern bool   opt_scip_gbmo;
 #endif
 
 extern MsSolver *pb_solver;

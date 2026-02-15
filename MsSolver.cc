@@ -122,7 +122,6 @@ void core_minimization(SimpSolver &sat_solver, Minisat::vec<Lit> &mus)
     int sat_calls = 0;
 
     min_count++;
-    if (opt_verbosity > 1) reportf("CoreMin(%d): ", min_count);
     for (int i = 0; last_size > 1 && i < last_size && sat_solver.conflicts <= totalConflicts; ) {
         Lit p = mus[i];
         for (int j = i+1; j < last_size; j++) mus[j-1] = mus[j];
@@ -142,13 +141,13 @@ void core_minimization(SimpSolver &sat_solver, Minisat::vec<Lit> &mus)
             for (int i = mus.size() - 1; i >= 0; i--) mus[i] = ~sat_solver.conflict[i];
         }
         if (opt_verbosity > 1)
-            reportf("reached %d conflicts in %d SAT calls; ", opt_coremin_cfl, sat_calls + 1);
+            reportf("CoreMin: reached %d conflicts in %d SAT calls; ", opt_coremin_cfl, sat_calls + 1);
     }
     sat_solver.budgetOff(); sat_solver.verbosity = verb;
 
     for (int i = mus.size() - 1; i >= 0; i--) mus[i] = ~mus[i];
     if (opt_verbosity > 1)
-        reportf("removed %d out of %d lits\n", init_size - mus.size(), init_size);
+        reportf("CoreMin(%d): removed %d out of %d lits\n", min_count, init_size - mus.size(), init_size);
 }
 
 /*static void core_trimming(SimpSolver &sat_solver, int max_size, int n)
@@ -187,7 +186,6 @@ static Int next_sum(Int bound, const vec<Int>& cs)
 
 }
 
-static
 Int evalPsCs(vec<Lit>& ps, vec<Int>&Cs, vec<bool>& model, vec<AtMost1>& am1_rels)
 {
     Int sum = 0;
@@ -410,7 +408,7 @@ void reset_soft_cls(vec<Pair<weight_t,Minisat::vec<Lit>*>> &soft_cls, vec<Pair<w
         for (int i = soft_cls.size() - 1; i >= 0; i--) soft_cls[i].fst *= goal_gcd;
 }
 
-static bool separate_gbmo_subgoal(vec<Int>& splitting_weights, vec<Lit>& goal_ps, vec<Int>& goal_Cs,
+bool separate_gbmo_subgoal(vec<Int>& splitting_weights, vec<Lit>& goal_ps, vec<Int>& goal_Cs,
         vec<Lit>& remain_goal_ps, vec<Int>& remain_goal_Cs, Int& remain_weight)
 {
     remain_goal_ps.clear(); remain_goal_Cs.clear(); remain_weight = 0;
@@ -442,7 +440,7 @@ static bool separate_gbmo_subgoal(vec<Int>& splitting_weights, vec<Lit>& goal_ps
 #ifdef CADICAL
 #define LimitTime(lim) sat_solver.limitTime(lim)
 #else
-#define LimitTime(lim) COMinisatPS::limitTime(lim)
+#define LimitTime(lim) limitTime(lim)
 #endif
 
 void MsSolver::maxsat_solve(solve_Command cmd)
@@ -509,6 +507,11 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     for (int i = soft_cls.size() - 1; i >= 0; i--)
         for (int j = soft_cls[i].snd->size() - 1; j >= 0; j--)
             sat_solver.setFrozen(var((*soft_cls[i].snd)[j]), true);
+
+    signal(SIGINT, SIGINT_interrupt);
+#ifdef SIGXCPU
+    signal(SIGXCPU,SIGINT_interrupt);
+#endif
 
     sat_solver.verbosity = opt_verbosity - 1;
 
@@ -581,11 +584,6 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         sat_solver.toDimacs(opt_cnf),
         exit(0);
 
-    signal(SIGINT, SIGINT_interrupt);
-#ifdef SIGXCPU
-    signal(SIGXCPU,SIGINT_interrupt);
-#endif
-
     Map<int,int> assump_map(-1);
     vec<Linear*> saved_constrs;
     vec<Lit> goal_ps;
@@ -598,7 +596,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     Int     try_lessthan = opt_goal, max_assump_Cs = Int_MIN;
     int     n_solutions = 0;    // (only for AllSolutions mode)
     vec<int8_t> multi_level_opt;
-    vec<Int> gbmo_splitting_weights, gbmo_remain_goal_Cs;
+    vec<Int> gbmo_remain_goal_Cs;
     vec<Lit> gbmo_remain_goal_ps;
     Int gbmo_goalval = 0, gbmo_remain_weight = 0;
     bool opt_delay_init_constraints = false,
@@ -711,7 +709,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         extern void separationIndex(const vec<weight_t>& cs, vec<int>& separation_points);
         vec<int> gbmo_points; // generalized Boolean multilevel optimization points (GBMO)
         separationIndex(sortedCs, gbmo_points); // find GBMO
-        for (int i = 0; i < gbmo_points.size(); i++)
+        for (int i = gbmo_points.size() - 1; i >= 0; i--)
             gbmo_splitting_weights.push(Int(sortedCs[gbmo_points[i]])),
             multi_level_opt[Sort::bin_search(sorted_assump_Cs, sortedCs[gbmo_points[i]])] |= 2;
         if (gbmo_points.size() > 0 && opt_verbosity >= 1)

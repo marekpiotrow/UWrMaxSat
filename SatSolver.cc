@@ -38,7 +38,7 @@ Var ExtSimpSolver::defined_var(int i) {
 #if defined(CADICAL)
     return cadical_declared_var(i + 1);
 #else
-    return i >= 0 && i < nvars ? i : var_Undef;
+    return i >= 0 && i < nVars() ? i : var_Undef;
 #endif
 }
 
@@ -104,10 +104,10 @@ next:;
 #endif
 }
 
+#if defined(CADICAL)
 void ExtSimpSolver::optimizeModel(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls,
         vec<bool>& model, int from_soft, int to_soft)
 {
-#if defined(CADICAL)
     extern bool satisfied_soft_cls(Minisat::vec<Lit> *cls, vec<bool>& model);
     Int sum = 0;
     bool opt = false;
@@ -122,8 +122,11 @@ void ExtSimpSolver::optimizeModel(const vec<Pair<weight_t, Minisat::vec<Lit>* > 
     if (opt)
         for (int v = model.size() - 1 ; v >= 0; v--)
             model[v] = solver->val(abs(lit2val(mkLit(v)))) > 0;
-#endif
 }
+#else
+void ExtSimpSolver::optimizeModel(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& ,
+        vec<bool>& , int , int ) {}
+#endif
 
 void ExtSimpSolver::printVarsCls(bool encoding, const vec<Pair<weight_t, Minisat::vec<Lit>* > > *soft_cls, int soft_cnt)
 {
