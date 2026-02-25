@@ -487,7 +487,7 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
     MY_SCIP_CALL(SCIPsetEmphasis(scip, SCIP_PARAMEMPHASIS_DEFAULT, TRUE));
     if (opt_scip_cpu > 0) 
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
-    else if (gbmo_splitting_weights.size() == 0)
+    else if (!opt_scip_gbmo || gbmo_splitting_weights.size() == 0)
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu_add));
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
@@ -647,7 +647,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
                             goal_ps.size(), scip_solver.gbmo_remain_goal_ps.size(),
                             scip_solver.splitting_weights.size());
             }
-        }
+        } else opt_scip_gbmo = false;
         for (int i = 0; i < goal_ps.size(); i++) {
             weight_t weight = toweight(goal_Cs[i]);
             if (set_var_coef(goal_ps[i], weight) == l_False) return l_False;
