@@ -103,13 +103,19 @@ int main(int argc, char** argv)
             pb_solver->solve(convert(opt_command));
         }
     } else {
-        if (opt_verbosity >= 1) reportf("Parsing PB file...\n");
-        opt_bin_model_out = false;
-        {
+        if (opt_wbo || opt_input != NULL && strcmp(opt_input+strlen(opt_input)-3, "wbo") == 0) {
+            opt_wbo = true; 
+            if (opt_verbosity >= 1) reportf("Parsing WBO file...\n");
+            bool opt = opt_maxsat_msu; opt_maxsat_msu = false;
+            parse_WBO_file(opt_input, *pb_solver);
+            opt_maxsat_msu = opt;
+        } else {
+            if (opt_verbosity >= 1) reportf("Parsing PB file...\n");
             bool opt = opt_maxsat_msu; opt_maxsat_msu = false;
             parse_PB_file(opt_input, *pb_solver, opt_old_format);
             opt_maxsat_msu = opt;
         }
+        opt_bin_model_out = false;
         if (opt_convert == ct_Undef) {
             opt_convert = ct_Mixed;
             if (opt_convert_goal == ct_Undef) opt_convert_goal = ct_Sorters;

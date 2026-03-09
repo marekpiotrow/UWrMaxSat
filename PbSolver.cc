@@ -65,10 +65,10 @@ void PbSolver::addGoal(const vec<Lit>& ps, const vec<Int>& Cs)
     /**/debug_names = &index2name;
     //**/reportf("MIN: "); dump(ps, Cs); reportf("\n");
 
-    goal = new (xmalloc<char>(sizeof(Linear) + ps.size()*(sizeof(Lit) + sizeof(Int)))) Linear(ps, Cs, Int_MIN, Int_MAX, lit_Undef);
+    goal = new (xmalloc<char>(sizeof(Linear) + ps.size()*(sizeof(Lit) + sizeof(Int)))) Linear(ps, Cs, Int_MIN, Int_MAX, lit_Undef, Int(1));
 }
 
-bool PbSolver::addConstr(const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit) {
+bool PbSolver::addConstr(const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit, Int wght) {
   vec<Lit>    norm_ps;
   vec<Int>    norm_Cs;
   Int         norm_rhs;
@@ -81,11 +81,11 @@ bool PbSolver::addConstr(const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int in
 
     Copy;
     if (normalizePb(norm_ps, norm_Cs, norm_rhs, lit))
-      storePb(norm_ps, norm_Cs, norm_rhs, Int_MAX, lit);
+      storePb(norm_ps, norm_Cs, norm_rhs, Int_MAX, lit, wght);
 
     CopyInv;
     if (normalizePb(norm_ps, norm_Cs, norm_rhs, lit))
-      storePb(norm_ps, norm_Cs, norm_rhs, Int_MAX, lit);
+      storePb(norm_ps, norm_Cs, norm_rhs, Int_MAX, lit, wght);
   }else{
     if (ineq > 0)
       Copy;
@@ -97,7 +97,7 @@ bool PbSolver::addConstr(const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int in
       ++norm_rhs;
 
     if (normalizePb(norm_ps, norm_Cs, norm_rhs, lit))
-      storePb(norm_ps, norm_Cs, norm_rhs, Int_MAX, lit);
+      storePb(norm_ps, norm_Cs, norm_rhs, Int_MAX, lit, wght);
   }
   return okay();
 }
@@ -193,24 +193,25 @@ bool PbSolver::normalizePb(vec<Lit>& ps, vec<Int>& Cs, Int& C, Lit& lit)
     bool changed;
     do{
         changed = false;
-        while (ps.size() > 0 && sum-Cs.last() < C){
-            changed = true;
-            if (lit != lit_Undef) {
-                if (use_base_assump) base_assump.push(ps.last());
-                else {
-                    vec<Lit> ban;
-                    ban.push( ~lit );
-                    ban.push(ps.last());
-                    addClause(ban);
+        if (!opt_wbo || lit == lit_Undef)
+            while (ps.size() > 0 && sum-Cs.last() < C){
+                changed = true;
+                if (lit != lit_Undef) {
+                    if (use_base_assump) base_assump.push(ps.last());
+                    else {
+                        vec<Lit> ban;
+                        ban.push( ~lit );
+                        ban.push(ps.last());
+                        addClause(ban);
+                    }
+                } else if (!addUnit(ps.last())) {
+                    sat_solver.addEmptyClause();
+                    return false;
                 }
-            } else if (!addUnit(ps.last())) {
-              sat_solver.addEmptyClause();
-              return false;
+                sum -= Cs.last();
+                C   -= Cs.last();
+                ps.pop(); Cs.pop();
             }
-            sum -= Cs.last();
-            C   -= Cs.last();
-            ps.pop(); Cs.pop();
-        }
 
         // Trivially true or false?
         if (C <= 0) {
@@ -249,7 +250,7 @@ bool PbSolver::normalizePb(vec<Lit>& ps, vec<Int>& Cs, Int& C, Lit& lit)
     return true;
 }
 
-void PbSolver::storePb(const vec<Lit>& ps, const vec<Int>& Cs, Int lo, Int hi, Lit lit)
+void PbSolver::storePb(const vec<Lit>& ps, const vec<Int>& Cs, Int lo, Int hi, Lit lit, Int wght)
 {
     assert(ps.size() == Cs.size());
     for (int i = 0; i < ps.size(); i++)
@@ -258,7 +259,7 @@ void PbSolver::storePb(const vec<Lit>& ps, const vec<Int>& Cs, Int lo, Int hi, L
     if (lit!=lit_Undef && n_occurs.size() > toInt(lit))
         n_occurs[toInt(lit)]++;
 
-    constrs.push(new (mem.alloc(sizeof(Linear) + ps.size()*(sizeof(Lit) + sizeof(Int)))) Linear(ps, Cs, lo, hi, lit));
+    constrs.push(new (mem.alloc(sizeof(Linear) + ps.size()*(sizeof(Lit) + sizeof(Int)))) Linear(ps, Cs, lo, hi, lit, wght));
 }
 
 //=================================================================================================
@@ -331,7 +332,7 @@ void PbSolver::propagate()
         for (int pol = 0; pol < 2; pol++){
             vec<int>&   cs = occur[toInt(mkLit(x,pol))];
             for (int i = 0; i < cs.size(); i++){
-                if (constrs[cs[i]] == NULL) continue;
+                if (constrs[cs[i]] == NULL || constrs[cs[i]]->lit != lit_Undef) continue;
                 int trail_sz = trail.size();
                 if (propagate(*constrs[cs[i]]))
                     constrs[cs[i]] = NULL;
@@ -399,14 +400,14 @@ void PbSolver::findIntervals()
             Linear& c = *prev;
             Linear& d = *constrs[i];
 
-            if (lhsEq(c, d)){
+            if (lhsEq(c, d) && c.lit == d.lit){
                 if (d.lo < c.lo) d.lo = c.lo;
                 if (d.hi > c.hi) d.hi = c.hi;
                 constrs[i-1] = NULL;
                 if (opt_verbosity >= 2) reportf("=");
                 found = true;
             }
-            if (lhsEqc(c, d)){
+            if (lhsEqc(c, d) && c.lit == d.lit){
                 Int sum = 0;
                 for (int j = 0; j < c.size; j++)
                     sum += c(j);
@@ -456,6 +457,7 @@ bool PbSolver::rewriteAlmostClauses()
             ps.clear();
             for (int j = n; j < c.size; j++)
                 ps.push(c[j]);
+            if (c.lit != lit_Undef) ps.push(~c.lit);
             addClause(ps);
 
             constrs[i] = NULL;      // Remove this clause
@@ -555,11 +557,11 @@ void PbSolver::solve(solve_Command cmd)
     //sat_solver.setVerbosity(opt_verbosity);
     sat_solver.verbosity = opt_verbosity - 1;
     Int goal_gcd;
-    if (goal != NULL) {
+    if (goal != NULL && goal->size > 0) {
         goal_gcd = (*goal)(0);
         for (int i = 1; i < goal->size; ++i) goal_gcd = gcd(goal_gcd, (*goal)(i));
         if (goal_gcd < 0) goal_gcd = -goal_gcd;
-    }
+    } else goal_gcd = 1;
 
     vec<Lit> goal_ps; if (goal != NULL){ for (int i = 0; i < goal->size; i++) goal_ps.push((*goal)[i]); }
     vec<Int> goal_Cs; if (goal != NULL){ for (int i = 0; i < goal->size; i++) goal_Cs.push((*goal)(i)/goal_gcd); }
@@ -665,7 +667,8 @@ void PbSolver::solve(solve_Command cmd)
                 best_goalvalue = goalvalue;
                 model.moveTo(best_model);
                 char* tmp = toString(best_goalvalue * goal_gcd);
-                if (opt_satlive || opt_verbosity == 0)
+                if ((opt_satlive || opt_verbosity == 0) &&
+                        (!opt_wbo || best_goalvalue * goal_gcd < top_soft_cost))
                     printf("o %s\n", tmp), fflush(stdout);
                 else reportf("\bFound solution: %s\b\n", tmp);
                 xfree(tmp);

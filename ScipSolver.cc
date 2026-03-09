@@ -121,8 +121,21 @@ lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
     std::string const_name = "pbc" + std::to_string(i);
     SCIP_Real lhs = (c.lo == Int_MIN ? -SCIPinfinity(scip) : tolong(c.lo)), 
               rhs = (c.hi == Int_MAX ?  SCIPinfinity(scip) : tolong(c.hi));
+    SCIP_VAR *indvar = nullptr;
+    SCIP_Bool issoft = FALSE;
+    SCIP_Real weight = 1.0;
+    if (c.lit != lit_Undef) {
+        int idx = -1;
+        if (set_scip_var(scip, solver, scip_solver.vars, c.lit, idx)== l_False) return l_False;
+        indvar = scip_solver.vars[idx];
+        scip_solver.is_indvar.set(idx,true);
+        issoft = TRUE;
+        weight = tolong(c.weight);
+    }
     SCIP_CONS *cons = nullptr;
-    MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(), nullptr, 0, nullptr, nullptr, 0, nullptr, nullptr, nullptr, 1.0, FALSE, /*nullptr,*/ -SCIPinfinity(scip), SCIPinfinity(scip)));
+    MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(),
+                nullptr, 0, nullptr, nullptr, 0, nullptr, nullptr, indvar, weight, issoft,
+                /*nullptr,*/ -SCIPinfinity(scip), SCIPinfinity(scip)));
     for (int j = 0; j < c.size; j++)
     {
         Lit lit = c[j];
@@ -142,12 +155,19 @@ lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
   return l_Undef;
 }
 
-void uwrLogMessage(FILE *file, const char *msg)
+void uwrInfoMessage(FILE *file, const char *msg)
 {
-    if (msg != nullptr) fputs("c SCIP: ", file), fputs(msg, file);
+    if (msg != nullptr && msg[0] != '\0') fputs("c [SCIP]: ", file), fputs(msg, file);
     fflush(file);
 }
-SCIP_DECL_MESSAGEINFO(uwrMessageInfo) { (void)(messagehdlr); uwrLogMessage(file, msg); }
+SCIP_DECL_MESSAGEINFO(uwrMessageInfo) { (void)(messagehdlr); uwrInfoMessage(file, msg); }
+
+void uwrWarningMessage(FILE *file, const char *msg)
+{
+    if (msg != nullptr && msg[0] != '\0') fputs("c [SCIP] WARNING: ", file), fputs(msg, file);
+    fflush(file);
+}
+SCIP_DECL_MESSAGEWARNING(uwrMessageWarning) { (void)(messagehdlr); uwrWarningMessage(file, msg); }
 
 lbool printScipStats(ScipSolver *scip_solver)
 {
@@ -182,7 +202,9 @@ void saveFixedVariables(ScipSolver *scip_solver, MsSolver *solver)
                          SCIPisZero(scip_solver->scip, ub - 1) ? l_True : l_Undef));
                 Var v = solver->sat_solver.defined_var(i);
                 if (val != l_Undef && v != var_Undef) {
-                    scip_solver->fixed_vars.push(mkLit(v, val == l_False)), ++fixed;
+                    bool sign = (scip_solver->is_indvar.at(i) ? val != l_False : val == l_False);
+                    scip_solver->fixed_vars.push(mkLit(v, sign));
+                    ++fixed;
                 }
             }
         }
@@ -316,7 +338,8 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                 int64_t(round(dualb)) + scip_solver->obj_offset : INT64_MIN);
         int64_t ubound = (!SCIPisInfinity(scip_solver->scip, primb) ? 
                 int64_t(round(primb)) + scip_solver->obj_offset : INT64_MAX);
-        if (opt_finder.load() != OPT_MSAT && opt_scip_cpu > 0 && (!solver->ipamir_used || opt_verbosity > 0))
+        if (opt_finder.load() != OPT_MSAT && opt_scip_cpu > 0 && !scip_solver->must_be_restarted && 
+                (!solver->ipamir_used || opt_verbosity > 0))
             reportf("SCIP timeout with lower and upper bounds: [%lld, %lld]\n", lbound, ubound);
         int64_t gcd = fromweight(solver->goal_gcd);
         if (!SCIPisInfinity(scip_solver->scip, dualb)) {
@@ -356,13 +379,20 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                         vec<bool> local_model;
                         for (int x = 0; x < solver->pb_n_vars; x++)
                             local_model.push(opt_model[x] != l_False);
+                        if (opt_wbo) // soft indicator vars are inversed in SCIP
+                            for (int i = solver->soft_cls.size() - 1; i >= 0; i--) {
+                                Var v = var(solver->soft_cls[i].snd->last());
+                                local_model[v] = !local_model[v];
+                            }
                         Minisat::vec<Lit> soft_unsat; // Not used in this context
                         Int local_value = solver->fixed_goalval + evalGoal(solver->soft_cls, local_model, soft_unsat);
                         if (local_value < solver->best_goalvalue) {
                             solver->best_goalvalue = local_value;
                             local_model.moveTo(solver->best_model);
                             char *tmp = toString(solver->best_goalvalue * solver->goal_gcd);
-                            if (opt_satisfiable_out && opt_output_top < 0 && (opt_satlive || opt_verbosity == 0))
+                            if (opt_satisfiable_out && opt_output_top < 0 &&
+                                  (opt_satlive || opt_verbosity == 0) && (!opt_wbo ||
+                                    solver->best_goalvalue * solver->goal_gcd < solver->top_soft_cost))
                                 printf("o %s\n", tmp), fflush(stdout);
                             else if (opt_verbosity > 0 || !opt_satisfiable_out && !solver->ipamir_used) 
                                 reportf("%s solution: %s\n", (found_opt == l_True ? "Next" : "Found"), tmp);
@@ -372,16 +402,20 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                     }
                 }
             }
-            if (!scip_solver->interrupted && opt_scip_cpu > 0 && !opt_scip_gbmo && 
+            if (!scip_solver->interrupted && (scip_solver->must_be_restarted || 
+                  opt_scip_cpu > 0 && !opt_scip_gbmo && 
                   lbound != INT64_MIN && try_count > 0 && 
                   double(ubound - lbound)/max(int64_t(1),max(abs(lbound),abs(ubound))) < 0.10 &&
-                  ubound - lbound < bound_gap) {
+                  ubound - lbound < bound_gap)) {
                 try_count--; opt_scip_cpu += opt_scip_cpu_add;
                 bound_gap = ubound - lbound;
                 MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", opt_scip_cpu));
                 //MY_SCIP_CALL(SCIPrestartSolve(scip_solver->scip));
-                if (!solver->ipamir_used || opt_verbosity > 0) 
+                if (!scip_solver->must_be_restarted && (!solver->ipamir_used || opt_verbosity > 0)) 
                     reportf("Restarting SCIP solver (with time-limit: %.0fs) ...\n", opt_scip_cpu);
+                if (scip_solver->must_be_restarted)
+                    saveFixedVariables(scip_solver, solver);
+                scip_solver->must_be_restarted = false;
                 try_again = true;
             }
         }
@@ -407,6 +441,11 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
             solver->sat_solver.extendGivenModel(opt_model);
             solver->best_model.clear();
             for (int x = 0; x < solver->pb_n_vars; x++) solver->best_model.push(opt_model[x] != l_False);
+            if (opt_wbo) // soft indicator vars are inversed in SCIP
+                for (int i = solver->soft_cls.size() - 1; i >= 0; i--) {
+                    Var v = var(solver->soft_cls[i].snd->last());
+                    solver->best_model[v] = !solver->best_model[v];
+                }
             Minisat::vec<Lit> soft_unsat; // Not used in this context
             solver->best_goalvalue = (solver->fixed_goalval + evalGoal(solver->soft_cls, solver->best_model, soft_unsat)) * solver->goal_gcd;
 
@@ -485,9 +524,13 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
     if (opt_input != nullptr) base = strrchr(opt_input,'/'), base = (base ? base+1 : opt_input); 
     MY_SCIP_CALL(SCIPcreateProbBasic(scip, (base != nullptr ? base : "IPAMIR of UWrMaxSat")));
     MY_SCIP_CALL(SCIPsetEmphasis(scip, SCIP_PARAMEMPHASIS_DEFAULT, TRUE));
-    if (opt_scip_cpu > 0) 
+    if (opt_scip_cpu > 0) {
+        if (opt_scip_cpu >= 2 * opt_scip_cpu_add) {
+            scip_solver.must_be_restarted = true;
+            opt_scip_cpu -= opt_scip_cpu_add;
+        }
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
-    else if (!opt_scip_gbmo || gbmo_splitting_weights.size() == 0)
+    } else if (!opt_scip_gbmo || gbmo_splitting_weights.size() == 0)
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu_add));
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
@@ -503,11 +546,12 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
         if (newfeastol < sumepsilon)
             MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/sumepsilon", newfeastol));
     }
-    if (opt_verbosity >= 2) {
-        SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip);
-        mh->messageinfo = uwrMessageInfo;
-        MY_SCIP_CALL(SCIPsetMessagehdlr(scip, mh));
-    }
+    SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip);
+    mh->messagewarning = uwrMessageWarning;
+    if (opt_verbosity >= 2)
+        mh->messageinfo    = uwrMessageInfo;
+    MY_SCIP_CALL(SCIPsetMessagehdlr(scip, mh));
+
     scip_solver.model.resize(sat_orig_vars);
     for (Var x = sat_orig_vars - 1; x >= 0; x--) {
         Var p = sat_solver.defined_var(x);
@@ -523,23 +567,21 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
         }
     // 3. add constraint
     scip_solver.scip = scip;
-  if (opt_maxsat) {
+    if (opt_maxsat) {
 #ifdef CADICAL
-    ScipClauseIterator it(scip, this, scip_solver.vars);
-    sat_solver.solver->traverse_clauses(it);
+        ScipClauseIterator it(scip, this, scip_solver.vars);
+        sat_solver.solver->traverse_clauses(it);
 #else
-    for (int i = 0; i < sat_orig_cls; i++)
-    {
-        bool is_satisfied;
-        const Minisat::Clause &ps = sat_solver.getClause(i, is_satisfied);
-        if (!is_satisfied)
-        {
-            std::string cons_name = "cons" + std::to_string(i);
-            add_constr(scip, this, ps, scip_solver.vars, cons_name);
+        for (int i = 0; i < sat_orig_cls; i++) {
+            bool is_satisfied;
+            const Minisat::Clause &ps = sat_solver.getClause(i, is_satisfied);
+            if (!is_satisfied) {
+                std::string cons_name = "cons" + std::to_string(i);
+                add_constr(scip, this, ps, scip_solver.vars, cons_name);
+            }
         }
-    }
 #endif
-  } else add_pb_constrs(scip_solver, this);
+    } else add_pb_constrs(scip_solver, this);
 
     return l_Undef;
 }
@@ -613,7 +655,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             const Pair<weight_t, Minisat::vec<Lit> *> &weight_ps = soft_cls[i];
             const Minisat::vec<Lit> &ps = *(weight_ps.snd);
             Lit   relax = ps.last();
-            if (ps.size() > 1) relax = ~relax;
+            if (ps.size() > 1 || opt_wbo) relax = ~relax;
             goal_ps.push(relax); goal_Cs.push(weight_ps.fst);
             int idx = -1;
             if (set_scip_var(scip_solver.scip, this, scip_solver.vars, relax, idx) == l_False)

@@ -31,7 +31,7 @@ struct ScipSolver {
     std::vector<lbool>       model;
     int64_t                  obj_offset;
     bool                     pb_decision_problem;
-    bool                     must_be_started;
+    bool                     must_be_started, must_be_restarted;
     bool                     started;
     bool                     interrupted;
     std::future<lbool>       asynch_result;
@@ -40,9 +40,10 @@ struct ScipSolver {
     vec<Int>                 gbmo_remain_goal_Cs, splitting_weights;
     vec<SCIP_VAR *>          obj_vars;
     vec<SCIP_Real>           obj_coefs;
+    BitMap                   is_indvar;
 
     ScipSolver() : scip(nullptr), obj_offset(0), pb_decision_problem(false), must_be_started(false),
-                   started(false), interrupted(false) {}
+                   must_be_restarted(false), started(false), interrupted(false), is_indvar(false) {}
     lbool gbmo_change_objective(MsSolver *solver, int64_t best_value);
 } ;
 

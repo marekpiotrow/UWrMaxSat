@@ -50,6 +50,7 @@ std::mutex stdout_mtx, optsol_mtx, fixed_vars_mtx;
 // Command line options:
 
 bool     opt_maxsat    = false;
+bool     opt_wbo       = false;
 bool     opt_satlive   = true;
 bool     opt_ansi      = true;
 char*    opt_cnf       = NULL;
@@ -166,7 +167,8 @@ void outputResult(const PbSolver& S, bool optimum)
 
     if (opt_output_top < 0) {
         if (optimum){
-            if (S.best_goalvalue == Int_MAX) printf("s UNSATISFIABLE\n"), exit_code = 20;
+            if (S.best_goalvalue == Int_MAX || (opt_wbo && S.best_goalvalue >= S.top_soft_cost))
+                printf("s UNSATISFIABLE\n"), exit_code = 20;
             else {
                 if (!opt_satisfiable_out) {
                     char* tmp = toString(S.best_goalvalue);
@@ -176,8 +178,9 @@ void outputResult(const PbSolver& S, bool optimum)
                 printf("s OPTIMUM FOUND\n"), exit_code = 30;
             }
         }else{
-            if (S.best_goalvalue == Int_MAX) printf("s UNKNOWN\n"), exit_code = 0;
-            else                             printf("%c SATISFIABLE\n", (opt_satisfiable_out ? 's' : 'c')), exit_code = 10;
+            if (S.best_goalvalue == Int_MAX || (opt_wbo && S.best_goalvalue >= S.top_soft_cost))
+                 printf("s UNKNOWN\n"), exit_code = 0;
+            else printf("%c SATISFIABLE\n", (opt_satisfiable_out ? 's' : 'c')), exit_code = 10;
         }
         resultsPrinted = true;
     } else if (opt_output_top == 1) resultsPrinted = true;
@@ -201,7 +204,8 @@ void outputResult(const PbSolver& S, bool optimum)
                     if (j < 0) sum += pb_solver->orig_soft_cls[i].fst;
                 }
                 char *tmp = nullptr;
-                if (sum < S.best_goalvalue) printf("o %s\n", tmp=toString(sum)), xfree(tmp);
+                if (sum < S.best_goalvalue && (!opt_wbo || sum < S.top_soft_cost))
+                    printf("o %s\n", tmp=toString(sum)), xfree(tmp);
             }
             if (opt_bin_model_out) {
                 printf("v ");
@@ -433,6 +437,7 @@ static cchar* doc =
     "\n"
     "Input options:\n"
     "  -m -maxsat    Use the MaxSAT input file format (wcnf).\n"
+    "  -wbo          Use the WBO input file format (wbo).\n"
     "  -of -old-fmt  Use old variant of OPB file format.\n"
     "\n"
     "Output options:\n"
@@ -563,6 +568,7 @@ static void parseOptions(int argc, char** argv, bool check_files)
 
             else if (oneof(arg, "of,old-fmt" )) opt_old_format = true;
             else if (oneof(arg, "m,maxsat"  )) opt_maxsat  = true;
+            else if (oneof(arg, "wbo"       )) opt_wbo  = true;
             else if (oneof(arg, "lex-opt"   )) opt_lexicographic = true;
             else if (oneof(arg, "no-bin"    )) opt_to_bin_search = false;
             else if (oneof(arg, "no-ms-pre" )) opt_maxsat_prepr = false;

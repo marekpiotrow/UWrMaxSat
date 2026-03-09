@@ -452,7 +452,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     bool          start_delayed_scip_solver = false;
 #endif
     bool opt_alternating_bin_search = (opt_minimization == 1 && opt_to_bin_search);
-    bool pb_decision_problem = (!opt_maxsat && !ipamir_used && soft_cls.size() == 0);
+    bool pb_decision_problem = (!opt_maxsat && !opt_wbo && !ipamir_used && soft_cls.size() == 0);
 
     if (!okay() || nVars() == 0) {
         if (opt_verbosity >= 1) {
@@ -560,7 +560,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             Minisat::vec<Lit> soft_unsat;
             best_goalvalue = fixed_goalval + evalGoal(soft_cls, best_model, soft_unsat);
             char* tmp = toString(best_goalvalue);
-            if (opt_satisfiable_out && (opt_satlive || opt_verbosity == 0))
+            if (opt_satisfiable_out && (!opt_wbo || best_goalvalue < top_soft_cost) &&
+                  (!opt_wbo || best_goalvalue < top_soft_cost) && (opt_satlive || opt_verbosity == 0))
                 printf("o %s\n", tmp), fflush(stdout);
             else if (opt_verbosity > 0 || !opt_satisfiable_out && !ipamir_used)
                 reportf("Found solution: %s\n", tmp);
@@ -912,7 +913,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
 #endif
                 }
                 char* tmp = toString(best_goalvalue * goal_gcd);
-                if (opt_satisfiable_out && opt_output_top < 0 && (opt_satlive || opt_verbosity == 0))
+                if (opt_satisfiable_out && opt_output_top < 0 &&
+                      (!opt_wbo || best_goalvalue < top_soft_cost) && (opt_satlive || opt_verbosity == 0))
                     printf("o %s\n", tmp), fflush(stdout);
                 else if (opt_verbosity > 0 || !opt_satisfiable_out && !ipamir_used)
                     reportf("%s solution: %s\n", (optimum_found ? "Next" : "Found"), tmp);
@@ -1192,7 +1194,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 saved_constrs_Cs.push(assump_Cs.last());
             } else if (goal_ps.size() > 1) {
                 saved_constrs.push(new (mem.alloc(sizeof(Linear) + goal_ps.size()*(sizeof(Lit) + sizeof(Int))))
-                        Linear(goal_ps, goal_Cs, Int_MIN, 1, assump_lit));
+                        Linear(goal_ps, goal_Cs, Int_MIN, 1, assump_lit, Int(1)));
                 assump_map.set(toInt(assump_lit),saved_constrs.size() - 1);
                 saved_constrs_Cs.push(assump_Cs.last());
             }

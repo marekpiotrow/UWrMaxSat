@@ -41,6 +41,7 @@ enum Command  { cmd_Minimize, cmd_FirstSolution, cmd_AllSolutions };
 
 // -- output options:
 extern bool     opt_maxsat;
+extern bool     opt_wbo;
 extern bool     opt_satlive;
 extern bool     opt_ansi;
 extern char*    opt_cnf;

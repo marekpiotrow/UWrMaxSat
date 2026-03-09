@@ -59,12 +59,13 @@ public:
     int     size;       // Terms in constraint.
     Int     lo, hi;     // Sum should be in interval [lo,hi] (inclusive).
     Lit     lit;        // Literal implies constraint (lit_Undef for normal case).
+    Int     weight;     // If lit != lit_Undef, then it is the weight of this soft constraint
 private:
     char    data[0];    // (must be last element of the struct)
 public:
     // NOTE: Cannot be used by normal 'new' operator!
-    Linear(const vec<Lit>& ps, const vec<Int>& Cs, Int low, Int high, Lit ll) {
-        orig_size = size = ps.size(), lo = low, hi = high; lit = ll;
+    Linear(const vec<Lit>& ps, const vec<Int>& Cs, Int low, Int high, Lit ll, Int wght) {
+        orig_size = size = ps.size(), lo = low, hi = high; lit = ll; weight = wght;
         char* p = data;
         for (int i = 0; i < ps.size(); i++) *(Lit*)p = ps[i], p += sizeof(Lit);
         for (int i = 0; i < Cs.size(); i++) new ((Int*)p) Int(Cs[i]), p += sizeof(Int); }
@@ -121,7 +122,7 @@ public:
         return sat_solver.addClause_(tmp_clause); }
 protected:        
     bool    normalizePb(vec<Lit>& ps, vec<Int>& Cs, Int& C, Lit& lit);
-    void    storePb   (const vec<Lit>& ps, const vec<Int>& Cs, Int lo, Int hi, Lit lit);
+    void    storePb   (const vec<Lit>& ps, const vec<Int>& Cs, Int lo, Int hi, Lit lit, Int weight);
     void    setupOccurs();   // Called on demand from 'propagate()'.
     void    findIntervals();
     bool    rewriteAlmostClauses();
@@ -146,6 +147,7 @@ public:
                 , asynch_interrupt(false)
                 , cpu_interrupt(false)
                 , use_base_assump(false)
+                , top_soft_cost(Int_MAX)
                 {
                     // Turn off preprocessing if wanted.
                     if (!use_preprocessing) 
@@ -186,13 +188,15 @@ public:
     vec<bool>           best_model;     // Best model found (size is 'pb_n_vars').
     Int                 best_goalvalue; // Value of goal function for that model (or 'Int_MAX' if no models were found).
     bool                asynch_interrupt, cpu_interrupt, use_base_assump;
+    Int                 top_soft_cost;  // Specified in WBO files. The solution cost must be < than this.
 
     // Problem specification:
     //
     int     getVar         (cchar* name);
     void    allocConstrs   (int n_vars, int n_constrs, int n_eq_constrs, int intsize);
     void    addGoal        (const vec<Lit>& ps, const vec<Int>& Cs);
-    bool    addConstr      (const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit);
+    bool    addConstr      (const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit, Int wght = 1.0);
+    void    addTopCost     (Int top_cost) { top_soft_cost = top_cost; }
 
     // Solve:
     //
