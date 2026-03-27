@@ -73,22 +73,19 @@ static void clear_assumptions(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs)
         assump_ps.shrink(removed), assump_Cs.shrink(removed);
 }
 
-bool satisfied_soft_cls(Minisat::vec<Lit> *cls, vec<bool>& model)
-{
-    assert(cls != NULL);
-    for (int i = cls->size() - 2; i >= 0; i--)
-        if ((( sign((*cls)[i]) && !model[var((*cls)[i])])
-          || (!sign((*cls)[i]) &&  model[var((*cls)[i])])))
-            return true;
-    return false;
-}
-
+extern Int evalGoal(Linear& goal, vec<bool>& model);
 
 Int evalGoal(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls, vec<bool>& model,
-        Minisat::vec<Lit>&soft_unsat)
+        Minisat::vec<Lit>&soft_unsat, const vec<Linear *> &wbo_soft_constrs)
 {
     Int sum = 0;
     soft_unsat.clear();
+    if (opt_wbo)
+        for (int i = wbo_soft_constrs.size() - 1; i >= 0; i--) {
+            Linear &c = *wbo_soft_constrs[i];
+            Int val = evalGoal(c, model);
+            model[var(c.lit)] = (c.lo <= val && val <= c.hi ? !sign(c.lit) : sign(c.lit));
+        }
     for (int i = 0; i < soft_cls.size(); i++) {
         bool sat;
         Lit p = soft_cls[i].snd->last();
@@ -271,7 +268,7 @@ static weight_t do_stratification(MsSolver& S, vec<weight_t>& sorted_assump_Cs, 
                 if (!S.global_assump_vars.at(var(p)))
                     assump_ps[to] = p, assump_Cs[to++] = soft_cls[i].fst;
             }
-            S.last_soft_added_to_sat = start;
+            if (!opt_wbo) S.last_soft_added_to_sat = start;
             Sort::sort(&soft_cls[start], sz + in_global_assumps);
             top_for_strat = start;
             break;
@@ -297,7 +294,7 @@ void MsSolver::harden_soft_cls(Minisat::vec<Lit>& assump_ps, vec<Int>& assump_Cs
         } else if (soft_cls[i].fst > ub_goalvalue) {
             if (opt_minimization == 1) {
                 harden_lits.set(p, Int(soft_cls[i].fst));
-                if (i <= top_for_strat && soft_cls[i].snd->size() > 1) {
+                if (i <= top_for_strat && soft_cls[i].snd->size() > 1 && !opt_wbo) {
                     sat_solver.addClause(*soft_cls[i].snd);
                     last_soft_added_to_sat = i;
                 }
@@ -538,6 +535,13 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             for (Var x = 0; x < pb_n_vars; x++)
                 assert(sat_solver.modelValue(x) != l_Undef),
                     best_model.push(sat_solver.modelValue(x) == l_True);
+            if (opt_wbo) {
+                for (int i = wbo_soft_cls.size() - 1; i >= 0; i--) {
+                    bool sat = satisfied_soft_cls(&wbo_soft_cls[i], best_model);
+                    Lit p = wbo_soft_cls[i].last();
+                    best_model[var(p)] = (sat ? sign(p) : !sign(p));
+                }
+            }
 #ifdef USE_SCIP
             if (pb_decision_problem) opt_scip_delay = 0;
 #endif
@@ -557,11 +561,11 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             }
             return;
         } else if (status == l_True) {
-            Minisat::vec<Lit> soft_unsat;
-            best_goalvalue = fixed_goalval + evalGoal(soft_cls, best_model, soft_unsat);
+            Minisat::vec<Lit> su; // soft_unsat - not used in this context
+            best_goalvalue = fixed_goalval + evalGoal(soft_cls, best_model, su, wbo_soft_constrs);
             char* tmp = toString(best_goalvalue);
             if (opt_satisfiable_out && (!opt_wbo || best_goalvalue < top_soft_cost) &&
-                  (!opt_wbo || best_goalvalue < top_soft_cost) && (opt_satlive || opt_verbosity == 0))
+                  (opt_satlive || opt_verbosity == 0))
                 printf("o %s\n", tmp), fflush(stdout);
             else if (opt_verbosity > 0 || !opt_satisfiable_out && !ipamir_used)
                 reportf("Found solution: %s\n", tmp);
@@ -667,6 +671,19 @@ void MsSolver::maxsat_solve(solve_Command cmd)
     }
     LB_goalval += fixed_goalval, UB_goalval += fixed_goalval;
     Sort::sort(psCs);
+    if (opt_wbo) { // add clauses extracted from soft constraints by PbSolver::rewriteAlmostClauses()
+        for (int i = wbo_soft_cls.size() - 1; i >= 0; i--) {
+            Lit p = ~wbo_soft_cls[i].last();
+            int it = Sort::lower_bound(psCs, Pair_new(p,0));
+            if (it < psCs.size() && psCs[it].fst == p) {
+                Minisat::vec<Lit> &cls = *soft_cls[psCs[it].snd].snd;
+                cls.clear();
+                for (int j = 0; j < wbo_soft_cls[i].size(); j++) cls.push(wbo_soft_cls[i][j]);
+            }
+        }
+        wbo_soft_cls.clear();
+        last_soft_added_to_sat = 0;
+    }
     if (weighted_instance) Sort::sortUnique(sorted_assump_Cs);
     if (LB_goalvalue < LB_goalval) LB_goalvalue = LB_goalval;
     if (UB_goalvalue == Int_MAX)   UB_goalvalue = UB_goalval;
@@ -897,7 +914,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
                 assert(sat_solver.modelValue(x) != l_Undef),
                 model.push(sat_solver.modelValue(x) == l_True);
             sat_solver.optimizeModel(soft_cls, model, top_for_strat, top_for_hard - 1);
-            Int goalvalue = evalGoal(soft_cls, model, soft_unsat) + fixed_goalval;
+            Int goalvalue = evalGoal(soft_cls, model, soft_unsat, wbo_soft_constrs) + fixed_goalval;
             extern bool opt_satisfiable_out;
             if (goalvalue < best_goalvalue || opt_output_top > 0 && goalvalue == best_goalvalue) {
                 {

@@ -54,6 +54,13 @@ bool PbSolver::convertPbs(bool first_call)
             sat_solver.addEmptyClause();
             return false;
         }
+        if (opt_wbo)
+            for (int i = 0; i < constrs.size(); i++)
+                if (constrs[i] != NULL && constrs[i]->lit != lit_Undef) {
+                    wbo_soft_constrs.push();
+                    constrs[i]->copyTo(wbo_soft_constrs.last());
+                }
+
         //if (opt_reuse_sorters)
             std::stable_sort(&constrs[0], &constrs[0]+constrs.size(), cmpLT);
     }

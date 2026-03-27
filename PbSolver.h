@@ -75,6 +75,15 @@ public:
         for (int i = 0; i < size; i++)
             (*this)(i).~Int();
     }
+    void copyTo(Linear* &nc) const {
+        vec<Lit> ps(size);
+        vec<Int> Cs(size);
+        for (int i = 0; i < size; i++) ps[i] = (*this)[i], Cs[i] = (*this)(i);
+
+        if (nc != NULL) nc->~Linear();
+        nc = new (xmalloc<char>(sizeof(Linear) + size*(sizeof(Lit) + sizeof(Int))))
+                Linear(ps, Cs, lo, hi, lit, weight);
+    }
 
     Lit operator [] (int i) const { return *(Lit*)(data + sizeof(Lit)*i); }
     Int operator () (int i) const { return *(Int*)(data + sizeof(Lit)*orig_size + sizeof(Int)*i); }
@@ -101,6 +110,9 @@ public:
     Int                 LB_goalvalue, UB_goalvalue;  // Lower and upper bounds on the goal value
     vec<Minisat::Lit>   base_assump;    // Used to efficiently encode (using sorters) changing goal bounds in binary search 
     bool                statsPrinted;
+    // WBO soft constraints
+    vec<vec<Minisat::Lit> > wbo_soft_cls; // clauses detected in soft constraints in a WBO file
+    vec<Linear*>        wbo_soft_constrs; // other soft constraints (not clauses) in the WBO file
 
 protected:
     vec<int>            n_occurs;       // Lit -> int: Number of occurrences.
@@ -194,6 +206,7 @@ public:
     //
     int     getVar         (cchar* name);
     void    allocConstrs   (int n_vars, int n_constrs, int n_eq_constrs, int intsize);
+    Lit     addSimpConstr(Int a, Lit x, int ineq, Int rhs);
     void    addGoal        (const vec<Lit>& ps, const vec<Int>& Cs);
     bool    addConstr      (const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit, Int wght = 1.0);
     void    addTopCost     (Int top_cost) { top_soft_cost = top_cost; }

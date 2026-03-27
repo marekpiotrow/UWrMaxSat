@@ -321,14 +321,25 @@ bool parseConstrs(B& in, S& solver, bool old_format, bool wbo_format)
 
         if (weight != 0) {
             Lit lit;
+            bool constr_added = false;
             if (weight > 0 && weight < solver.top_soft_cost) {
-                ++nsoft; tmp.growTo(15,0);
-                snprintf(&tmp[0], tmp.size(), "#%d", nsoft);
-                lit = mkLit(solver.getVar(tmp));
-                gps.push(~lit); gCs.push(weight);
-                solver.sat_solver.setFrozen(var(lit), true);
+                if (ps.size() == 1) {
+                    Lit p = solver.addSimpConstr(Cs[0], ps[0], ineq, rhs);
+                    if (p == COMinisatPS::lit_Error) ((MsSolver*)&solver)->fixed_goalval += weight;
+                    else if (p != lit_Undef) {
+                        gps.push(p), gCs.push(weight);
+                        solver.sat_solver.setFrozen(var(p), true);
+                    }
+                    constr_added = true;
+                } else {
+                    ++nsoft; tmp.growTo(15,0);
+                    snprintf(&tmp[0], tmp.size(), "#%d", nsoft);
+                    lit = mkLit(solver.getVar(tmp));
+                    gps.push(~lit); gCs.push(weight);
+                    solver.sat_solver.setFrozen(var(lit), true);
+                }
             } else lit = lit_Undef;
-            if (!solver.addConstr(ps, Cs, rhs, ineq, lit, weight))
+            if (!constr_added && !solver.addConstr(ps, Cs, rhs, ineq, lit, weight))
                 return false;
         }
         ps.clear();

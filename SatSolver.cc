@@ -108,7 +108,6 @@ next:;
 void ExtSimpSolver::optimizeModel(const vec<Pair<weight_t, Minisat::vec<Lit>* > >& soft_cls,
         vec<bool>& model, int from_soft, int to_soft)
 {
-    extern bool satisfied_soft_cls(Minisat::vec<Lit> *cls, vec<bool>& model);
     Int sum = 0;
     bool opt = false;
     for (int i = to_soft; i >= from_soft; i--) {

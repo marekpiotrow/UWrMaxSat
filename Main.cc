@@ -120,23 +120,26 @@ int main(int argc, char** argv)
             opt_convert = ct_Mixed;
             if (opt_convert_goal == ct_Undef) opt_convert_goal = ct_Sorters;
         }
+        if ((opt_wbo || opt_maxsat_msu) && pb_solver->goal != NULL) {
+            for (int i = 0; i < pb_solver->goal->size; i++) {
+                Minisat::vec<Lit> *ps_copy = new Minisat::vec<Lit>;
+                ps_copy->push(~(*pb_solver->goal)[i]);
+#ifdef BIG_WEIGHTS                    
+                pb_solver->soft_cls.push(Pair_new((*pb_solver->goal)(i), ps_copy));
+#else
+                pb_solver->soft_cls.push(Pair_new(tolong((*pb_solver->goal)(i)), ps_copy));
+#endif                    
+            }
+            if (!opt_wbo) {
+                delete pb_solver->goal; pb_solver->goal = NULL;
+            }
+        }
+
         if (!opt_maxsat_msu) {
             if (opt_minimization < 0) opt_minimization = 2; // bin (sat/unsat based) algorithm
             if (opt_seq_thres < 0) opt_seq_thres = 96;
             pb_solver->solve(convert(opt_command));
         } else {
-            if (pb_solver->goal != NULL) {
-                for (int i = 0; i < pb_solver->goal->size; i++) {
-                    Minisat::vec<Lit> *ps_copy = new Minisat::vec<Lit>;
-                    ps_copy->push(~(*pb_solver->goal)[i]);
-#ifdef BIG_WEIGHTS                    
-                    pb_solver->soft_cls.push(Pair_new((*pb_solver->goal)(i), ps_copy));
-#else
-                    pb_solver->soft_cls.push(Pair_new(tolong((*pb_solver->goal)(i)), ps_copy));
-#endif                    
-                }
-                delete pb_solver->goal; pb_solver->goal = NULL;
-            }
             if (opt_seq_thres < 0) opt_seq_thres = 4;
             if (opt_minimization < 0) opt_minimization = 1; // alt (unsat based) algorithm
             pb_solver->maxsat_solve(convert(opt_command));

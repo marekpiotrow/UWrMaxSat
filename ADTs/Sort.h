@@ -58,6 +58,22 @@ template<typename T, typename V>
 int bin_search(const V& seq, const T& elem) {
     return Sort::bin_search(seq, elem, LessThan_default<T>()); }
 
+template<typename T, typename V, class LessThan>
+int lower_bound(const V& seq, const T& elem, LessThan lt)
+{
+    int fst = 0, cnt = seq.size();
+    while (cnt > 0) {
+        int step = cnt / 2, mid = fst + step;
+        if (lt(seq[mid], elem)) fst = mid + 1, cnt -= step + 1;
+        else cnt = step;
+    }
+    return fst;
+}
+
+template<typename T, typename V>
+int lower_bound(const V& seq, const T& elem) {
+    return Sort::lower_bound(seq, elem, LessThan_default<T>()); }
+
 template <class T, class LessThan>
 void selectionSort(T* array, int size, LessThan lt)
 {

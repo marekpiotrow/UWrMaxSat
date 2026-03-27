@@ -74,6 +74,17 @@ using weight_t = int64_t;
 #define WEIGHT_MAX std::numeric_limits<weight_t>::max()
 #endif
 
+template<class vecType>
+bool satisfied_soft_cls(vecType *cls, vec<bool>& model)
+{
+    assert(cls != NULL);
+    for (int i = cls->size() - 2; i >= 0; i--)
+        if ((( sign((*cls)[i]) && !model[var((*cls)[i])])
+          || (!sign((*cls)[i]) &&  model[var((*cls)[i])])))
+            return true;
+    return false;
+}
+
 class ExtSimpSolver: public SimpSolver {
 private:
     Minisat::vec<uint32_t> elimClauses;

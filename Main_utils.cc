@@ -185,7 +185,8 @@ void outputResult(const PbSolver& S, bool optimum)
         resultsPrinted = true;
     } else if (opt_output_top == 1) resultsPrinted = true;
 
-    if (opt_model_out && S.best_goalvalue != Int_MAX){
+    if (opt_model_out && S.best_goalvalue != Int_MAX &&
+            (!opt_wbo || S.best_goalvalue < S.top_soft_cost)){
 #ifdef MAXPRE
         if (opt_use_maxpre) {
             std::vector<int> trueLiterals, model;
@@ -243,7 +244,8 @@ void handlerOutputResult(const PbSolver& S, bool optimum = true)
     static char buf[BUF_SIZE];
     static int lst = 0;
     if (!opt_satlive || resultsPrinted || opt_output_top >= 0) return;
-    if (opt_model_out && S.best_goalvalue != Int_MAX){
+    if (opt_model_out && S.best_goalvalue != Int_MAX &&
+            (!opt_wbo || S.best_goalvalue < S.top_soft_cost)){
 #ifdef MAXPRE
         if (opt_use_maxpre) {
             std::vector<int> trueLiterals, model;
@@ -324,12 +326,17 @@ void handlerOutputResult(const PbSolver& S, bool optimum = true)
     }
     const char *out = NULL;
     if (optimum){
-        if (S.best_goalvalue == Int_MAX) out = "s UNSATISFIABLE\n", exit_code = 20;
-        else                             out = "s OPTIMUM FOUND\n", exit_code = 30;
+        if (S.best_goalvalue == Int_MAX || (opt_wbo && S.best_goalvalue >= S.top_soft_cost))
+            out = "s UNSATISFIABLE\n", exit_code = 20;
+        else
+            out = "s OPTIMUM FOUND\n", exit_code = 30;
     }else{
-        if (S.best_goalvalue == Int_MAX) out = "s UNKNOWN\n", exit_code = 0;
-        else if (opt_satisfiable_out)    out = "s SATISFIABLE\n", exit_code = 10;
-        else                             out = "c SATISFIABLE\n", exit_code = 10;
+        if (S.best_goalvalue == Int_MAX || (opt_wbo && S.best_goalvalue >= S.top_soft_cost))
+            out = "s UNKNOWN\n", exit_code = 0;
+        else if (opt_satisfiable_out)
+            out = "s SATISFIABLE\n", exit_code = 10;
+        else
+            out = "c SATISFIABLE\n", exit_code = 10;
     }
     if (out != NULL) strcpy(buf + lst, out), lst += strlen(out);
     lst = write(1, buf, lst); lst = 0;
