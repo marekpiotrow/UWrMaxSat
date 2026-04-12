@@ -801,6 +801,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             reportf("SCIP started with lower and upper bounds: [%s, %s]\n", t1, t2);
             xfree(t1); xfree(t2);
         }
+        scip_fix_sat_fixed_vars(&scip_solver, this);
         if (opt_scip_parallel)
             scip_solver.asynch_result = std::async(std::launch::async, scip_solve_async, &scip_solver, this);
         else {

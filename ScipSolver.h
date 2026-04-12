@@ -49,6 +49,8 @@ struct ScipSolver {
 
 void  scip_interrupt_solve(ScipSolver &scip);
 
+lbool scip_fix_sat_fixed_vars(ScipSolver *scip_solver, MsSolver *solver);
+
 lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver);
 
 #endif

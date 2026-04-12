@@ -84,6 +84,21 @@ lbool set_scip_var(SCIP *scip, MsSolver *solver, std::vector<SCIP_VAR *> &vars, 
     return l_Undef;
 }
 
+lbool scip_fix_sat_fixed_vars(ScipSolver *scip_solver, MsSolver *solver)
+{
+    for (int i = solver->pb_n_vars - 1; i >= 0; i--) {
+        if (scip_solver->vars[i] == nullptr) continue;
+        lbool val = solver->sat_solver.value(i);
+        SCIP_Bool infeasible = false, fixed = false;
+        if (val != l_Undef) {
+            SCIP_Real fixedval = (scip_solver->is_indvar.at(i) ? val != l_True : val == l_True);
+            MY_SCIP_CALL(SCIPfixVar(scip_solver->scip, scip_solver->vars[i], fixedval,
+                        &infeasible, &fixed));
+        }
+    }
+    return l_Undef;
+}
+
 template<class T>
 lbool add_constr(SCIP *scip,
                         MsSolver *solver,
@@ -92,9 +107,9 @@ lbool add_constr(SCIP *scip,
                         const std::string &const_name,
                         bool trans_var = true)
 {
-    SCIP_CONS *cons = nullptr;
-    MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(), nullptr, 0, nullptr, nullptr, 0, nullptr, nullptr, nullptr, 1.0, FALSE, /*nullptr,*/ -SCIPinfinity(scip), SCIPinfinity(scip)));
     int lhs = 1;
+    vec<SCIP_VAR *> linvars;
+    vec<SCIP_Real>  lincoeff;
     for (int j = 0; j < ps.size(); j++)
     {
         auto lit = ps[j];
@@ -103,10 +118,13 @@ lbool add_constr(SCIP *scip,
         int idx = (trans_var ? -1 : var(lit));
         if (set_scip_var(scip, solver, vars, lit, idx)== l_False) return l_False;
         auto v = vars[idx];
-        MY_SCIP_CALL(SCIPaddCoefPseudoboolean(scip, cons, v, sign(lit) ? -1 : 1));
+        linvars.push(v);
+        lincoeff.push(sign(lit) ? -1 : 1);
         if (sign(lit)) lhs--;
     }
-    MY_SCIP_CALL(SCIPchgLhsPseudoboolean(scip, cons, lhs));
+    SCIP_CONS *cons = nullptr;
+    MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, const_name.c_str(),
+                linvars.size(), &linvars[0], &lincoeff[0], lhs, SCIPinfinity(scip)));
     MY_SCIP_CALL(SCIPaddCons(scip, cons));
     MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
     return l_Undef;
@@ -132,10 +150,8 @@ lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
         issoft = TRUE;
         weight = tolong(c.weight);
     }
-    SCIP_CONS *cons = nullptr;
-    MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(),
-                nullptr, 0, nullptr, nullptr, 0, nullptr, nullptr, indvar, weight, issoft,
-                /*nullptr,*/ -SCIPinfinity(scip), SCIPinfinity(scip)));
+    vec<SCIP_VAR *> linvars;
+    vec<SCIP_Real>  lincoeff;
     for (int j = 0; j < c.size; j++)
     {
         Lit lit = c[j];
@@ -144,11 +160,21 @@ lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
         if (set_scip_var(scip, solver, scip_solver.vars, lit, idx)== l_False) return l_False;
         auto v = scip_solver.vars[idx];
         SCIP_Real coeff = tolong(c(j));
-        MY_SCIP_CALL(SCIPaddCoefPseudoboolean(scip, cons, v, sign(lit) ? -coeff : coeff));
-        if (sign(lit)) lhs -= coeff, rhs -= coeff;
+        linvars.push(v);
+        lincoeff.push(sign(lit) ? -coeff : coeff);
+        if (sign(lit)) { 
+            if (!SCIPisInfinity(scip, -lhs)) lhs -= coeff;
+            if (!SCIPisInfinity(scip,  rhs)) rhs -= coeff;
+        }
     }
-    MY_SCIP_CALL(SCIPchgLhsPseudoboolean(scip, cons, lhs));
-    MY_SCIP_CALL(SCIPchgRhsPseudoboolean(scip, cons, rhs));
+    SCIP_CONS *cons = nullptr;
+    if (issoft)
+        MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(),
+                &linvars[0], linvars.size(), &lincoeff[0], nullptr, 0, nullptr, nullptr, 
+                indvar, weight, issoft, nullptr, lhs, rhs));
+    else
+        MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, const_name.c_str(),
+                linvars.size(), &linvars[0], &lincoeff[0], lhs, rhs));
     MY_SCIP_CALL(SCIPaddCons(scip, cons));
     MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
   }
@@ -172,16 +198,10 @@ SCIP_DECL_MESSAGEWARNING(uwrMessageWarning) { (void)(messagehdlr); uwrWarningMes
 lbool printScipStats(ScipSolver *scip_solver)
 {
     std::lock_guard<std::mutex> lck(stdout_mtx);
-    SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip_solver->scip);
-    auto mi = mh->messageinfo;
-    mh->messageinfo = uwrMessageInfo;
-    MY_SCIP_CALL(SCIPsetMessagehdlr(scip_solver->scip, mh));
     printf("c _______________________________________________________________________________\nc \n");
     SCIPprintStatusStatistics(scip_solver->scip, nullptr);
     SCIPprintOrigProblemStatistics(scip_solver->scip, nullptr);
     SCIPprintTimingStatistics(scip_solver->scip, nullptr);
-    mh->messageinfo = mi;
-    MY_SCIP_CALL(SCIPsetMessagehdlr(scip_solver->scip, mh));
     return l_Undef;
 }
 
@@ -220,9 +240,8 @@ lbool ScipSolver::gbmo_change_objective(MsSolver *solver, int64_t best_value)
     SCIP_CONS *cons = nullptr;
     std::string cons_name = "obj" + std::to_string(splitting_weights.size());
     SCIP_Real bound = best_value - obj_offset;
-    MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, cons_name.c_str(),
-                &obj_vars[0], obj_vars.size(), &obj_coefs[0], nullptr, 0, nullptr,
-                nullptr, nullptr, 1.0, FALSE, /*nullptr,*/ -SCIPinfinity(scip), bound));
+    MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, cons_name.c_str(),
+                obj_vars.size(), &obj_vars[0], &obj_coefs[0], -SCIPinfinity(scip), bound));
     MY_SCIP_CALL(SCIPaddCons(scip, cons));
     MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
     obj_offset += bound;
@@ -505,6 +524,7 @@ public:
 lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
 {
     extern double opt_scip_cpu, opt_scip_cpu_add;
+    extern int    opt_mem_lim;
     extern bool opt_force_scip;
 
     if (scip_solver.scip != nullptr) return l_Undef;
@@ -536,13 +556,17 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu));
     } else if (!opt_scip_gbmo || gbmo_splitting_weights.size() == 0)
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/time", opt_scip_cpu_add));
+    if (opt_mem_lim != INT32_MAX)
+        MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/memory", opt_mem_lim / 2.0));
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
+    // MY_SCIP_CALL(SCIPsetIntParam(scip, "misc/usesymmetry", 0));
     if (declared_intsize > 0 && declared_intsize < 49) {
         SCIP_Real feastol, newfeastol = pow(0.5,declared_intsize), epsilon, sumepsilon;
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/feastol", &feastol));
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/epsilon", &epsilon));
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/sumepsilon", &sumepsilon));
+        MY_SCIP_CALL(SCIPsetIntParam(scip, "propagating/genvbounds/timingmask", 1));
         if (newfeastol < feastol)
             MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/feastol", newfeastol));
         if (newfeastol < epsilon)
@@ -552,8 +576,7 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
     }
     SCIP_MESSAGEHDLR *mh = SCIPgetMessagehdlr(scip);
     mh->messagewarning = uwrMessageWarning;
-    if (opt_verbosity >= 2)
-        mh->messageinfo    = uwrMessageInfo;
+    mh->messageinfo = uwrMessageInfo;
     MY_SCIP_CALL(SCIPsetMessagehdlr(scip, mh));
 
     scip_solver.model.resize(sat_orig_vars);
@@ -617,7 +640,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     int obj_vars = 0;
     auto set_var_coef = [&scip_solver, &obj_offset, &obj_vars, this](Lit relax, weight_t weight)
     {
-        if (value(relax) != l_Undef) {
+        if (value(relax) != l_Undef && !opt_wbo) {
             if (value(relax) == l_False) obj_offset += fromweight(weight) * fromweight(this->goal_gcd);
         } else {
             obj_vars++;
@@ -627,7 +650,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             if (set_scip_var(scip_solver.scip, this, scip_solver.vars, relax, idx) == l_False)
                 return l_False;
             auto v = scip_solver.vars[idx];
-            MY_SCIP_CALL(SCIPaddVarObj(scip_solver.scip, v, double(coef)));
+            MY_SCIP_CALL(SCIPchgVarObj(scip_solver.scip, v, double(coef)));
             scip_solver.obj_vars.push(v); scip_solver.obj_coefs.push(double(coef));
             if (! sign(relax))
                 obj_offset -= fromweight(coef);
