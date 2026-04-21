@@ -49,6 +49,9 @@ void clear_shared_formulas(void);
 
 DefineHash(Lit, return (uint)toInt(key); )
 
+DefineHash(vec<Lit> *, uint h = 0; for (int i = 0; i < key->size(); i++) h = (h << 3) + Hash<Lit>()((*key)[i]); return h; )
+DefineEqual(vec<Lit> *, if (key1->size() != key2->size()) return false; else { for (int i = key1->size() - 1; i >= 0; i--) if (toInt((*key1)[i]) != toInt((*key2)[i])) return false; return true;} )
+
 //=================================================================================================
 // Linear -- a class for storing pseudo-boolean constraints:
 
@@ -113,6 +116,10 @@ public:
     // WBO soft constraints
     vec<vec<Minisat::Lit> > wbo_soft_cls; // clauses detected in soft constraints in a WBO file
     vec<Linear*>        wbo_soft_constrs; // other soft constraints (not clauses) in the WBO file
+    // nonlinear PB constraints
+    int                nfactors;         // the number of AND factors in constraints
+    Map<vec<Lit> *, Lit > AndFactors;      // AND factors in PB constrs; the last lit in each vector
+                                         // is equivalent to the coniunction of all-but-last lits
 
 protected:
     vec<int>            n_occurs;       // Lit -> int: Number of occurrences.
@@ -148,12 +155,15 @@ public:
                 , LB_goalvalue(Int_MIN)
                 , UB_goalvalue(Int_MAX)
                 , statsPrinted(false)
+                , nfactors(0)
+                , AndFactors(lit_Undef, 100)
                 , propQ_head(0)
                 //, stats(sat_solver.stats_ref())
                 , declared_n_vars(-1)
                 , declared_n_constrs(-1)
                 , declared_n_eq_constrs(-1)
                 , declared_intsize(-1)
+                , declared_n_products(-1)
                 , totalSorters(0), totalSorterInputs(0.0), totalReusedInputs(0.0), totalReusedPercent(0.0)
                 , best_goalvalue(Int_MAX)
                 , asynch_interrupt(false)
@@ -189,6 +199,7 @@ public:
     int     declared_n_constrs;         // Number of constraints declared in file header (-1 = not specified).
     int     declared_n_eq_constrs;      // Number of equal constraints declared in file header (-1 = not specified).
     int     declared_intsize;           // The size of integers required to handle an instance, declared in file header (-1 = not specified).
+    int     declared_n_products;        // The number of products declared in file header (-1 = not specified).
     int     pb_n_vars;                  // Actual number of variables (before clausification).
     int     pb_n_constrs;               // Actual number of constraints (before clausification).
 
@@ -205,9 +216,10 @@ public:
     // Problem specification:
     //
     int     getVar         (cchar* name);
-    void    allocConstrs   (int n_vars, int n_constrs, int n_eq_constrs, int intsize);
+    void    allocConstrs   (int n_vars, int n_constrs, int n_eq_constrs, int intsize, int n_products);
     Lit     addSimpConstr(Int a, Lit x, int ineq, Int rhs);
     void    addGoal        (const vec<Lit>& ps, const vec<Int>& Cs);
+    Lit     addTerm        (vec<Lit>& ps);
     bool    addConstr      (const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit, Int wght = 1.0);
     void    addTopCost     (Int top_cost) { top_soft_cost = top_cost; }
 

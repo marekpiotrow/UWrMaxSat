@@ -162,11 +162,29 @@ static char* parseIdent(B& in, vec<char>& tmp) {   // 'tmp' is cleared, then fil
 
 
 template<class B, class S>
+void parseTerm(B& in, S& solver, vec<Lit>& out_ps, vec<char>& tmp)
+    // 'tmp' is a tempory, passed to avoid frequent memory reallocation.
+{
+    bool sign;
+    vec<Lit> factor;
+
+    factor.push(out_ps.last());
+    do {
+        sign = (*in == '~');
+        if (sign) ++in;
+        factor.push(mkLit(solver.getVar(parseIdent(in, tmp)), sign));
+        skipWhitespace(in);
+    } while (*in == '~' || (*in >= 'a' && *in <= 'z') || (*in >= 'A' && *in <= 'Z') ||
+                (*in >= '0' && *in <= '9') || *in == '_');
+    out_ps.last() = solver.addTerm(factor); // a returned lit is equivalent to the factor 
+}
+
+template<class B, class S>
 void parseExpr(B& in, S& solver, vec<Lit>& out_ps, vec<Int>& out_Cs, vec<char>& tmp, bool old_format)
     // NOTE! only uses "getVar()" method of solver; doesn't add anything.
     // 'tmp' is a tempory, passed to avoid frequent memory reallocation.
 {
-    bool empty = true;
+    bool empty = true, sign;
     for(;;){
         skipWhitespace(in);
         if ((*in < '0' || *in > '9') && *in != '+' && *in != '-') break;
@@ -174,8 +192,14 @@ void parseExpr(B& in, S& solver, vec<Lit>& out_ps, vec<Int>& out_Cs, vec<char>& 
         skipWhitespace(in);
         if (old_format){
             if (*in != '*') throw xstrdup("Missing '*' after coefficient.");
-            ++in; }
-        out_ps.push(mkLit(solver.getVar(parseIdent(in, tmp))));
+            ++in;
+            skipWhitespace(in); }
+        if (sign = (*in == '~')) ++in;
+        out_ps.push(mkLit(solver.getVar(parseIdent(in, tmp)), sign));
+        skipWhitespace(in);
+        if (*in == '~' || (*in >= 'a' && *in <= 'z') || (*in >= 'A' && *in <= 'Z') ||
+                (*in >= '0' && *in <= '9') || *in == '_')
+            parseTerm(in, solver, out_ps, tmp);
         empty = false;
     }
     if (empty) throw xstrdup("Empty expression.");
@@ -185,7 +209,7 @@ void parseExpr(B& in, S& solver, vec<Lit>& out_ps, vec<Int>& out_Cs, vec<char>& 
 template<class B, class S>
 void parseSize(B& in, S& solver)
 {
-    int n_vars, n_constrs, n_eq_constrs = -1, intsize = -1;
+    int n_vars, n_constrs, n_eq_constrs = -1, intsize = -1, n_products = -1;
 
     if (*in != '*') return;
     ++in;
@@ -202,9 +226,13 @@ void parseSize(B& in, S& solver)
     if (skipText(in, "#equal=")) {
         n_eq_constrs = toint(parseInt(in));
         skipWhitespace(in);
-        if (skipText(in, "intsize=")) intsize = toint(parseInt(in));
+        if (skipText(in, "intsize=")) {
+            intsize = toint(parseInt(in));
+            skipWhitespace(in);
+            if (skipText(in, "#product=")) n_products = toint(parseInt(in));
+        }
     }
-    solver.allocConstrs(n_vars, n_constrs, n_eq_constrs, intsize);
+    solver.allocConstrs(n_vars, n_constrs, n_eq_constrs, intsize, n_products);
 
   Abort:
     skipLine(in);
@@ -380,7 +408,7 @@ static void parse_p_line(B& in, S& solver, bool& wcnf_format, Int& hard_bound)
         hard_bound = parseInt(in);
 
     if (!opt_use_maxpre) {
-        solver.allocConstrs(n_vars, n_constrs, 0, 0);
+        solver.allocConstrs(n_vars, n_constrs, 0, 0, 0);
         for (int i = 1; i <= n_vars; i++) {
             snprintf(&tmp[0], tmp.size(), "%d", i);
             solver.getVar(tmp);

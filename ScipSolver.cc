@@ -133,6 +133,39 @@ lbool add_constr(SCIP *scip,
 lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
 {
   SCIP *scip = scip_solver.scip;
+  // add AND factors in PB constraints
+  if (solver->AndFactors.size() > 0) {
+      vec<Pair<vec<Lit> *, Lit> > factors;
+      solver->AndFactors.pairs(factors);
+      for (int i = 0; i < factors.size(); i++) {
+          std::string const_name = "and" + std::to_string(i);
+          SCIP_VAR *resvar = nullptr;
+          int nvars = factors[i].fst->size();
+          SCIP_VAR *vars[nvars];
+          for (int j = 0; j < nvars; j++) {
+              Lit term = (*factors[i].fst)[j];
+              int idx = -1;
+              if (set_scip_var(scip, solver, scip_solver.vars, term, idx)== l_False)
+                  return l_False;
+              if (sign(term)) {
+                  SCIP_VAR *negvar;
+                  MY_SCIP_CALL(SCIPgetNegatedVar(scip, scip_solver.vars[idx], &negvar));
+                  vars[j] = negvar;
+              } else vars[j] = scip_solver.vars[idx]; 
+          }
+          factors[i].fst->~vec();
+          int idx = -1;
+          if (set_scip_var(scip, solver, scip_solver.vars, factors[i].snd, idx)== l_False)
+              return l_False;
+          resvar = scip_solver.vars[idx];
+          SCIP_CONS *cons = nullptr;
+          MY_SCIP_CALL(SCIPcreateConsBasicAnd(scip, &cons, const_name.c_str(), resvar, nvars, &vars[0]));
+          MY_SCIP_CALL(SCIPaddCons(scip, cons));
+          MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
+      }
+      solver->AndFactors.~Map();
+  }
+  // add PB constraints
   for (int i = 0; i < solver->constrs.size(); i++) {
     if (solver->constrs[i] == NULL) continue;
     Linear &c = *solver->constrs[i]; assert(c.lo != Int_MIN || c.hi != Int_MAX);

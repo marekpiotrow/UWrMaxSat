@@ -51,12 +51,13 @@ int PbSolver::getVar(cchar* name)
 }
 
 
-void PbSolver::allocConstrs(int n_vars, int n_constrs, int n_eq_constrs, int intsize)
+void PbSolver::allocConstrs(int n_vars, int n_constrs, int n_eq_constrs, int intsize, int n_products)
 {
     declared_n_vars       = n_vars;
     declared_n_constrs    = n_constrs;
     declared_n_eq_constrs = n_eq_constrs;
     declared_intsize      = intsize;
+    declared_n_products   = n_products;
 }
 
 Lit PbSolver:: addSimpConstr(Int a, Lit x, int ineq, Int rhs)
@@ -77,6 +78,29 @@ void PbSolver::addGoal(const vec<Lit>& ps, const vec<Int>& Cs)
     //**/reportf("MIN: "); dump(ps, Cs); reportf("\n");
 
     goal = new (xmalloc<char>(sizeof(Linear) + ps.size()*(sizeof(Lit) + sizeof(Int)))) Linear(ps, Cs, Int_MIN, Int_MAX, lit_Undef, Int(1));
+}
+
+Lit PbSolver::addTerm(vec<Lit>& ps)
+{
+    char tmp[16];
+    vec<Lit> tmp_cls(2), cls(ps.size() + 1);
+    vec<Lit> *pps = new vec<Lit>;
+    ps.copyTo(*pps);
+    Lit p, &pp = AndFactors.ref(pps);
+    if (pp == lit_Undef) {
+        snprintf(tmp, 16, "#A%d", ++nfactors);
+        p = mkLit(getVar(tmp));
+        pp = p;
+    } p = pp;
+
+    tmp_cls[0] = ~p;
+    for (int i = 0; i < ps.size(); i++) {
+        tmp_cls[1] = ps[i]; addClause(tmp_cls); cls[i] = ~ps[i];
+    }
+    cls.last() = p;
+    addClause(cls);
+
+    return p;
 }
 
 bool PbSolver::addConstr(const vec<Lit>& ps, const vec<Int>& Cs, Int rhs, int ineq, Lit& lit, Int wght) {
