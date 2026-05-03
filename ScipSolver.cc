@@ -36,10 +36,24 @@ extern bool opt_scip_gbmo;
 
 std::atomic<char> opt_finder(OPT_NONE);
 
+lbool ScipSolver::clear() {
+    if (scip == nullptr) return l_Undef;
+    for (auto v: vars)
+        if (v != nullptr) MY_SCIP_CALL(SCIPreleaseVar(scip, &v));
+    MY_SCIP_CALL(SCIPfree(&scip));
+    scip = nullptr;
+    vars.clear(); model.clear(); fixed_vars.clear(); gbmo_remain_goal_ps.clear();
+    gbmo_remain_goal_Cs.clear(); splitting_weights.clear();
+    obj_vars.clear(); obj_coefs.clear(); is_indvar.clear();
+    obj_offset = 0; pb_decision_problem = false; must_be_started = false;
+    must_be_restarted = false; started = false; interrupted = false; starting_time = 0;
+    return l_Undef;
+}
+
 void scip_interrupt_solve(ScipSolver &scip_solver)
 {
     if (scip_solver.scip != nullptr) {
-        if (opt_verbosity > 0)
+        if (opt_verbosity > 0 && !scip_solver.must_be_started)
             reportf("SCIP solver is interrupted (UWrMaxSat found OPT).\n");
         SCIPinterruptSolve(scip_solver.scip);
         SCIPinterruptLP(scip_solver.scip, TRUE);
@@ -87,7 +101,7 @@ lbool set_scip_var(SCIP *scip, MsSolver *solver, std::vector<SCIP_VAR *> &vars, 
 lbool scip_fix_sat_fixed_vars(ScipSolver *scip_solver, MsSolver *solver)
 {
     for (int i = solver->pb_n_vars - 1; i >= 0; i--) {
-        if (scip_solver->vars[i] == nullptr) continue;
+        if (i >= (int)scip_solver->vars.size() || scip_solver->vars[i] == nullptr) continue;
         lbool val = solver->sat_solver.value(i);
         SCIP_Bool infeasible = false, fixed = false;
         if (val != l_Undef) {
@@ -204,7 +218,7 @@ lbool add_pb_constrs(ScipSolver &scip_solver, MsSolver *solver)
     if (issoft)
         MY_SCIP_CALL(SCIPcreateConsBasicPseudoboolean(scip, &cons, const_name.c_str(),
                 &linvars[0], linvars.size(), &lincoeff[0], nullptr, 0, nullptr, nullptr, 
-                indvar, weight, issoft, nullptr, lhs, rhs));
+                indvar, weight, issoft, /*nullptr,*/ lhs, rhs));
     else
         MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, const_name.c_str(),
                 linvars.size(), &linvars[0], &lincoeff[0], lhs, rhs));
@@ -556,7 +570,7 @@ public:
 
 lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
 {
-    extern double opt_scip_cpu, opt_scip_cpu_add;
+    extern double opt_scip_cpu, opt_scip_cpu_add, opt_scip_delay;
     extern int    opt_mem_lim;
     extern bool opt_force_scip;
 
@@ -572,6 +586,8 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
     if (!ipamir_used || opt_verbosity >= 2)
         reportf("Using SCIP solver, version %.2f.%d, https://www.scipopt.org\n", 
             SCIPversion(), SCIPtechVersion());
+    scip_solver.starting_time = cpuTime() + opt_scip_delay;
+    scip_solver.started = false;
 
     // 1. create scip context object
     SCIP *scip = nullptr;
@@ -624,6 +640,9 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
             int idx = -1;
             if (set_scip_var(scip, this, scip_solver.vars, global_assumptions[i], idx) == l_False)
                 return l_False;
+            SCIP_Bool infeasible = false, fixed = false;
+            SCIP_Real fixedval = (sign(global_assumptions[i])? 0 : 1);
+            MY_SCIP_CALL(SCIPfixVar(scip, scip_solver.vars[idx], fixedval, &infeasible, &fixed));
         }
     // 3. add constraint
     scip_solver.scip = scip;
@@ -654,7 +673,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
                                   int sat_orig_cls,
                                   ScipSolver &scip_solver)
 {
-    extern double opt_scip_cpu, opt_scip_cpu_add, opt_scip_delay;
+    extern double opt_scip_cpu, opt_scip_cpu_add;
     extern bool opt_scip_parallel;
 
     if (scip_solver.started) return l_Undef;
@@ -778,9 +797,10 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             opt_scip_cpu + (scip_solver.must_be_restarted ? opt_scip_cpu_add : 0));
 
     scip_solver.obj_offset = obj_offset;
-    if (opt_scip_delay > cpuTime() + 10) {
+    if (scip_solver.starting_time > cpuTime() + 10) {
         scip_solver.must_be_started = true;
-        if (!ipamir_used || opt_verbosity > 0) reportf("SCIP start delayed for at least %.0fs\n", opt_scip_delay - cpuTime());  
+        if (!ipamir_used || opt_verbosity > 0) reportf("SCIP start delayed for at least %.0fs\n",
+                scip_solver.starting_time - cpuTime());  
         return l_Undef;
     } else if (opt_scip_parallel) {
         scip_solver.asynch_result = std::async(std::launch::async, scip_solve_async, &scip_solver, this);

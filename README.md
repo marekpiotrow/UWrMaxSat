@@ -1,4 +1,4 @@
-**UWrMaxSat** is a quite new solver for MaxSAT and pseudo-Boolean problems. It has been created at the University of Wroclaw and can be characterized as a complete solver for partial weighted MaxSAT instances, and, independently, for linear pseudo-Boolean optimizing and decision ones.
+**UWrMaxSat** is a quite new solver for MaxSAT and pseudo-Boolean problems. It has been created at the University of Wroclaw and can be characterized as a complete solver for partial weighted MaxSAT instances, and, independently, for linear pseudo-Boolean optimizing and decision ones. Starting from version 2.0, it accepts also non-linear pseudo-Boolean instances and weighted Boolean optimization (WBO) formulas. See MaxSAT Evaluation pages for exact descriptions of those formats.
 
 When citing, always reference my [ICTAI 2020](https://www.ictai2020.org/) conference paper, bibtex record is [here](https://www.computer.org/csdl/api/v1/citation/bibtex/proceedings/1pP3sSVh3BS/922800a132).
 
@@ -43,8 +43,8 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tar zxf scipoptsuite-10.0.1.tgz  
-        cd scipoptsuite-10.0.1  
+        tar zxf scipoptsuite-10.0.2.tgz  
+        cd scipoptsuite-10.0.2  
         mkdir build && cd build  
         cmake -DSYM=snauty -DSHARED=off -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DGMP=on -DMPFR=on -DBOOST=on -DTPI=tny ..  
         cmake --build . --config Release --target libscip libsoplex-pic  

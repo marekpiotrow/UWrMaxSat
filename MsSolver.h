@@ -108,7 +108,6 @@ class MsSolver final : public PbSolver {
         , scip_foundUB(false)
         , scip_LB(Int_MIN)
         , scip_UB(Int_MAX)
-        , goal_gcd(1)
         , last_soft_added_to_sat(INT_MAX)
         , max_input_lit(lit_Undef)
         , termCallbackState(nullptr)
@@ -128,7 +127,6 @@ class MsSolver final : public PbSolver {
     vec<Pair<weight_t, Minisat::vec<Lit>* > > orig_soft_cls; // Soft clauses before preprocessing by MaxPre; empty if MaxPre is not used
     vec<Pair<weight_t, Minisat::vec<Lit>* > > soft_cls; // Relaxed non-unit soft clauses with weights; a relaxing var is the last one in a vector. 
     vec<Pair<Lit,int> > psCs;     // sorted soft literals with indices to soft_cls
-    weight_t            goal_gcd; // gcd of soft_cls weights
     int                 top_for_strat, top_for_hard; // Top indices to soft_cls for stratification and hardening operations.
     int                 last_soft_added_to_sat; // An index tp soft_cls, above which soft clauses of length > 1 are added to sat solver.
     Map<Lit, Int>       harden_lits;    // The weights of literals included into "At most 1" clauses (MaxSAT preprocessing of soft clauese).
@@ -152,7 +150,8 @@ class MsSolver final : public PbSolver {
         scip_foundLB = scip_foundUB = false;
         scip_LB = Int_MIN, scip_UB = Int_MAX;
         goal_gcd = 1;
-        harden_lits.clear(); am1_rels.clear(); harden_assump.clear();
+        harden_lits.clear(); am1_rels.clear(); harden_assump.clear(); psCs.clear();
+        gbmo_splitting_weights.clear();
         assumptions.copyTo(global_assumptions);
         global_assump_vars.clear();
         if (global_assumptions.size() > 0) {

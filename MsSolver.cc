@@ -790,7 +790,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
              scip_solver.fixed_vars.clear();
            }
       }
-      if (scip_solver.must_be_started && (cpuTime() >= opt_scip_delay || start_delayed_scip_solver)) {
+      if (scip_solver.must_be_started &&
+              (cpuTime() >= scip_solver.starting_time || start_delayed_scip_solver)) {
         scip_solver.must_be_started = start_delayed_scip_solver = false;
         if (opt_cpu_lim > cpuTime()) LimitTime(opt_cpu_lim); else break;
         sat_solver.clearInterrupt();
@@ -1146,8 +1147,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if ((LB_goalvalue == best_goalvalue ||
                 satisfied && best_goalvalue - LB_goalvalue < gbmo_remain_weight) &&
                 (opt_minimization != 1 || last_soft_in_best_model <= last_soft_in_queue)) {
-            if (opt_minimization >= 1 && opt_verbosity >= 2) {
-                char *t; reportf("Lower bound: %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
+            if (opt_minimization >= 1 && opt_verbosity >= 2) print_LB(true); 
             break;
         }
 
@@ -1241,10 +1241,9 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (weighted_instance && satisfied && sat_solver.conflicts > 10000)
             harden_soft_cls(assump_ps, assump_Cs, sorted_assump_Cs, delayed_assump, delayed_assump_sum);
         if (opt_minimization >= 1 && opt_verbosity >= 2) {
-            char *t; reportf("Lower bound: %s, assump. size: %d, stratif. level: %d (cls: %d, wght: %s), conflicts: %lu\n", t=toString(LB_goalvalue * goal_gcd),
+            char *t; reportf("LB: %s, assump. size: %d, stratif. level: %d (cls: %d, wght: %s), conflicts: %lu\n", t=toString(LB_goalvalue * goal_gcd),
                     assump_ps.size(), sorted_assump_Cs.size(), top_for_strat, toString(sorted_assump_Cs.size() > 0 ? sorted_assump_Cs.last() : 0), sat_solver.conflicts); xfree(t); }
-        if (opt_minimization == 2 && opt_verbosity == 1 && use_base_assump) {
-            char *t; reportf("Lower bound: %s\n", t=toString(LB_goalvalue * goal_gcd)); xfree(t); }
+        if (opt_minimization == 2 && opt_verbosity == 1 && use_base_assump) print_LB(true);
 SwitchSearchMethod:
         if (opt_minimization == 1 && opt_to_bin_search && LB_goalvalue + 5 < UB_goalvalue &&
             cpuTime() >= opt_unsat_cpu + start_solving_cpu && sat_solver.conflicts >= opt_unsat_conflicts) {
@@ -1332,6 +1331,7 @@ SwitchSearchMethod:
             }
         }
       }
+      if (opt_minimization >= 1 && opt_verbosity >= 1) print_LB();
     } // END OF LOOP: while(1)
       if (gbmo_remain_goal_ps.size() == 0 || !satisfied) break;
 
@@ -1420,7 +1420,10 @@ SwitchSearchMethod:
             && opt_finder != OPT_SCIP
 #endif
             ) pb_solver->printStats();
-    if (ipamir_used) sat_solver.clearInterrupt();
+    if (ipamir_used) {
+        sat_solver.clearInterrupt();
+        if (scip_solver.scip != nullptr) scip_solver.clear();
+    }
 }
 
 int lower_bound(vec<Lit>& set, Lit elem)

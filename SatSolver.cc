@@ -77,13 +77,13 @@ void ExtSimpSolver::extendGivenModel(vec<lbool> &model)
         Lit x;
         for (j = elimClauses[i--]; j > 0; j--, i--) { // clause processing
             x = Minisat::toLit(elimClauses[i]);
-            if ((model[var(x)] ^ sign(x)) == l_True) { // the clause is satisfied
+            if (var(x) < model.size() && (model[var(x)] ^ sign(x)) == l_True) { // clause is satisfied
                 i -= elimClauses[i-j] + 1; // skip witnesses
                 goto next;             }
         }
         for (j = elimClauses[i--]; j > 0; j--, i--) { // witnesses processing
             x = Minisat::toLit(elimClauses[i]);
-            if ((model[var(x)] ^ sign(x)) != l_True) //  x is not satisfied
+            if (var(x) < model.size() && (model[var(x)] ^ sign(x)) != l_True) //  x is not satisfied
                 model[var(x)] = (model[var(x)] == l_True ? l_False : l_True); // x is flipped
         }
 next:;

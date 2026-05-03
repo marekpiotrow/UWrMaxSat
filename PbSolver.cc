@@ -597,11 +597,12 @@ void PbSolver::solve(solve_Command cmd)
     // Solver (optimize):
     //sat_solver.setVerbosity(opt_verbosity);
     sat_solver.verbosity = opt_verbosity - 1;
-    Int goal_gcd;
     if (goal != NULL && goal->size > 0) {
-        goal_gcd = (*goal)(0);
-        for (int i = 1; i < goal->size; ++i) goal_gcd = gcd(goal_gcd, (*goal)(i));
-        if (goal_gcd < 0) goal_gcd = -goal_gcd;
+        Int ggcd;
+        ggcd = (*goal)(0);
+        for (int i = 1; i < goal->size; ++i) ggcd = gcd(ggcd, (*goal)(i));
+        if (ggcd < 0) ggcd = -ggcd;
+        goal_gcd = toweight(ggcd);
     } else goal_gcd = 1;
 
     vec<Lit> goal_ps; if (goal != NULL){ for (int i = 0; i < goal->size; i++) goal_ps.push((*goal)[i]); }
@@ -774,10 +775,9 @@ void PbSolver::solve(solve_Command cmd)
         if (!addConstr(goal_ps, goal_Cs, try_lessthan, -2, assump_lit))
             break; // unsat
         if (assump_lit != lit_Undef && !use_base_assump) assump_ps.push(assump_lit);
-        if (opt_minimization >= 1 && opt_verbosity >= 2) {
-            char *tmp; reportf("Lower bound: %s\n", tmp = toString(LB_goalvalue)); xfree(tmp); }
         convertPbs(false);
       }         
+      if (opt_minimization >= 1 && opt_verbosity >= 1) print_LB();
     } // END OF LOOP
 
     if (goal == NULL && sat)

@@ -34,6 +34,7 @@ struct ScipSolver {
     bool                     must_be_started, must_be_restarted;
     bool                     started;
     bool                     interrupted;
+    double                   starting_time;
     std::future<lbool>       asynch_result;
     vec<Lit>                 fixed_vars;
     vec<Lit>                 gbmo_remain_goal_ps;
@@ -43,8 +44,10 @@ struct ScipSolver {
     BitMap                   is_indvar;
 
     ScipSolver() : scip(nullptr), obj_offset(0), pb_decision_problem(false), must_be_started(false),
-                   must_be_restarted(false), started(false), interrupted(false), is_indvar(false) {}
+                   must_be_restarted(false), started(false), interrupted(false), starting_time(0),
+                   is_indvar(false) {}
     lbool gbmo_change_objective(MsSolver *solver, int64_t best_value);
+    lbool clear();
 } ;
 
 void  scip_interrupt_solve(ScipSolver &scip);

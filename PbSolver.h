@@ -110,7 +110,10 @@ protected:
 public:
     vec<Linear*>        constrs;        // Vector with all constraints.
     Linear*             goal;           // Non-normalized goal function (used in optimization). NULL means no goal function specified. NOTE! We are always minimizing.
+    weight_t            goal_gcd;       // gcd of goal coefficients or soft_cls weights
     Int                 LB_goalvalue, UB_goalvalue;  // Lower and upper bounds on the goal value
+    Int                 LB_last_prt;    // Last printed lower bound on the goal value
+    double              LB_last_prt_time;// CPU time, when LB was printed last time
     vec<Minisat::Lit>   base_assump;    // Used to efficiently encode (using sorters) changing goal bounds in binary search 
     bool                statsPrinted;
     // WBO soft constraints
@@ -152,8 +155,11 @@ public:
     PbSolver(bool print_info = true, bool use_preprocessing = false) 
                 : sat_solver(print_info)
                 , goal(NULL)
+                , goal_gcd(1)
                 , LB_goalvalue(Int_MIN)
                 , UB_goalvalue(Int_MAX)
+                , LB_last_prt(Int_MIN)
+                , LB_last_prt_time(0)
                 , statsPrinted(false)
                 , nfactors(0)
                 , AndFactors(lit_Undef, 100)
@@ -182,7 +188,18 @@ public:
         best_goalvalue = Int_MAX;
 
     }
-
+    void print_LB(bool force = false) {
+        extern int opt_LB_prt_period;
+        double ctime = cpuTime();
+        char *tmp;
+        if ((force || ctime > LB_last_prt_time + opt_LB_prt_period) && LB_goalvalue  > LB_last_prt) {
+            tmp = toString(LB_goalvalue * goal_gcd);
+            printf("c LB %s\n", tmp); fflush(stdout);
+            LB_last_prt_time = ctime;
+            LB_last_prt = LB_goalvalue;
+            xfree(tmp);
+        }
+    }
     // Helpers (semi-internal):
     //
     virtual lbool   value(Var x) { return sat_solver.value(x); }
