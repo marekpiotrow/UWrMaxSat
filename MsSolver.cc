@@ -1422,7 +1422,9 @@ SwitchSearchMethod:
             ) pb_solver->printStats();
     if (ipamir_used) {
         sat_solver.clearInterrupt();
+#ifdef USE_SCIP
         if (scip_solver.scip != nullptr) scip_solver.clear();
+#endif
     }
 }
 

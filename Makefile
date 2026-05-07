@@ -29,9 +29,9 @@ else
 endif
 
 # Sets of compile flags for different build types
-MINISATP_REL    ?= -std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
-MINISATP_DEB    ?= -std=c++11 -O0 -D DEBUG  -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
-MINISATP_PRF    ?= -std=c++11 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_REL    ?= -std=c++14 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_DEB    ?= -std=c++14 -O0 -D DEBUG  -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
+MINISATP_PRF    ?= -std=c++14 -O3 -D NDEBUG -Wno-strict-aliasing -D CADICAL $(MAXPRE) $(BIGWEIGHTS)
 MINISATP_FPIC   ?= -fpic
 
 # GNU Standard Install Variables

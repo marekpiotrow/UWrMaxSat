@@ -24,6 +24,7 @@ OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWA
 #ifndef Main_h
 #define Main_h
 
+#include <ctime>
 #include "Int.h"
 #include "PbSolver.h"
 

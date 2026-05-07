@@ -73,7 +73,7 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
    - To build a dynamic library you have to compile the static libraries above with the compiler option -fPIC  
      and, in the last step, replace 'make r' with 'make lsh'. The compiler option can be added to the steps above  
      as follows:  
-       (2) The SAT solver library should be configured with the command: CXXFLAGS=-fPIC ./configure  
+       (2) The SAT solver ./configure script should be run with the added option: --shared  
        (3) The MaxPre Makefile should be modified with: sed -i 's/-g/-fPIC -D NDEBUG/' src/Makefile  
        (4) Add the following option to the first line starting with cmake:    
            -DSCIP_COMP_OPTIONS=-fPIC  
