@@ -48,7 +48,7 @@ int ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq, bool soft_co
   vec<unsigned> nfs, outfs;
   vec<Pair<unsigned, unsigned> > usedfs;
   Map<unsigned, unsigned> unusedmap;
-  unsigned cnt = 1, subseq_found = 0, fs_size = fs.size(), reused_size = 0;
+  unsigned cnt = 1, subseq_found = 0, fs_size = fs.size();
   int initCost = FEnv::topSize();
 
   Sort::sort(fs);
@@ -95,7 +95,7 @@ int ReuseSorters::encodeBySorter(vec<Formula>& fs, int k, int ineq, bool soft_co
       for (int seq = 0; seq < cover.size(); seq++) {
           if (cover[seq] < 0) continue;
           // a subsequence found - insert it in outfs and update structures
-          outfs.push(SubSeq); outfs.push(cover[seq]); reused_size += prev_seq_size[cover[seq]];
+          outfs.push(SubSeq); outfs.push(cover[seq]);
           vec<Pair<unsigned,unsigned> > usedtmp;
           updateCoverIndices(cover[seq], cover, rev_cover, usedtmp, unusedmap, true);
           for (int i = 0; i < usedtmp.size(); i++) usedfs.push(usedtmp[i]);
