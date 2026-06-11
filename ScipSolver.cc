@@ -609,9 +609,10 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/memory", opt_mem_lim / 2.0));
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
-    // MY_SCIP_CALL(SCIPsetIntParam(scip, "misc/usesymmetry", 0));
+    MY_SCIP_CALL(SCIPsetIntParam(scip, "misc/usesymmetry", 0));
+    //MY_SCIP_CALL(SCIPsetBoolParam(scip, "propagating/symmetry/usedynamicprop", FALSE));
     if (declared_intsize > 0 && declared_intsize < 49) {
-        SCIP_Real feastol, newfeastol = pow(0.5,declared_intsize), epsilon, sumepsilon;
+        SCIP_Real feastol, newfeastol = pow(0.5,min(declared_intsize,29)), epsilon, sumepsilon;
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/feastol", &feastol));
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/epsilon", &epsilon));
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/sumepsilon", &sumepsilon));

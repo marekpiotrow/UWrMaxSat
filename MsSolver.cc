@@ -473,7 +473,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
             reportf("Converting %d PB-constraints to clauses...\n", constrs.size());
         propagate();
 #ifdef USE_SCIP
-        if (opt_use_scip_slvr && declared_intsize <= std::numeric_limits<double>::digits - 6) {
+        if (opt_use_scip_slvr && declared_intsize <= std::numeric_limits<double>::digits - 6 &&
+                constrs.size() < 600000 && soft_cls.size() < 10000) {
             opt_force_scip = true;
             scip_init(scip_solver, sat_solver.nVars());
             scip_solver.pb_decision_problem = pb_decision_problem;
