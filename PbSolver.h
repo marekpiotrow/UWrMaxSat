@@ -188,12 +188,13 @@ public:
         best_goalvalue = Int_MAX;
 
     }
-    void print_LB(bool force = false) {
+    void print_LB(Int scip_LB, bool force = false) {
         extern int opt_LB_prt_period;
         double ctime = cpuTime();
         char *tmp;
-        if ((force || ctime > LB_last_prt_time + opt_LB_prt_period) && LB_goalvalue  > LB_last_prt) {
-            tmp = toString(LB_goalvalue * goal_gcd);
+        Int LB = max(scip_LB, LB_goalvalue);
+        if ((force || ctime > LB_last_prt_time + opt_LB_prt_period) && LB  > LB_last_prt) {
+            tmp = toString(LB * goal_gcd);
             printf("c LB %s\n", tmp); fflush(stdout);
             LB_last_prt_time = ctime;
             LB_last_prt = LB_goalvalue;

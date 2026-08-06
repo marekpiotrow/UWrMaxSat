@@ -39,13 +39,14 @@ struct ScipSolver {
     vec<Lit>                 fixed_vars;
     vec<Lit>                 gbmo_remain_goal_ps;
     vec<Int>                 gbmo_remain_goal_Cs, splitting_weights;
+    Int                      gbmo_goal_best_val;
     vec<SCIP_VAR *>          obj_vars;
     vec<SCIP_Real>           obj_coefs;
     BitMap                   is_indvar;
 
     ScipSolver() : scip(nullptr), obj_offset(0), pb_decision_problem(false), must_be_started(false),
                    must_be_restarted(false), started(false), interrupted(false), starting_time(0),
-                   is_indvar(false) {}
+                   gbmo_goal_best_val(0), is_indvar(false) {}
     lbool gbmo_change_objective(MsSolver *solver, int64_t best_value);
     lbool clear();
 } ;

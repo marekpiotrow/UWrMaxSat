@@ -121,7 +121,7 @@ lbool add_constr(SCIP *scip,
                         const std::string &const_name,
                         bool trans_var = true)
 {
-    int lhs = 1;
+    SCIP_Real lhs = 1;
     vec<SCIP_VAR *> linvars;
     vec<SCIP_Real>  lincoeff;
     for (int j = 0; j < ps.size(); j++)
@@ -284,15 +284,17 @@ lbool ScipSolver::gbmo_change_objective(MsSolver *solver, int64_t best_value)
     if (opt_verbosity >= 2) reportf("SCIP: changing GBMO objective\n");
     MY_SCIP_CALL(SCIPfreeReoptSolve(scip));
     // add last objective as a constrain
-    SCIP_CONS *cons = nullptr;
-    std::string cons_name = "obj" + std::to_string(splitting_weights.size());
-    SCIP_Real bound = best_value - obj_offset;
-    MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, cons_name.c_str(),
-                obj_vars.size(), &obj_vars[0], &obj_coefs[0], -SCIPinfinity(scip), bound));
-    MY_SCIP_CALL(SCIPaddCons(scip, cons));
-    MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
-    obj_offset += bound;
-    obj_vars.clear(); obj_coefs.clear();
+    if (best_value != INT64_MAX) {
+        SCIP_CONS *cons = nullptr;
+        std::string cons_name = "obj" + std::to_string(splitting_weights.size());
+        SCIP_Real bound = best_value - obj_offset;
+        MY_SCIP_CALL(SCIPcreateConsBasicLinear(scip, &cons, cons_name.c_str(),
+                    obj_vars.size(), &obj_vars[0], &obj_coefs[0], -SCIPinfinity(scip), bound));
+        MY_SCIP_CALL(SCIPaddCons(scip, cons));
+        MY_SCIP_CALL(SCIPreleaseCons(scip, &cons));
+        obj_offset += bound;
+        obj_vars.clear(); obj_coefs.clear();
+    }
     // split goal if it is possible and add new objective
     vec<Lit> goal_ps;
     vec<Int> goal_Cs;
@@ -307,6 +309,8 @@ lbool ScipSolver::gbmo_change_objective(MsSolver *solver, int64_t best_value)
                     goal_ps.size(), gbmo_remain_goal_ps.size(), 
                     splitting_weights.size());
     }
+    gbmo_goal_best_val = (solver->best_goalvalue < WEIGHT_MAX ?
+                evalPsCs(goal_ps, goal_Cs, solver->best_model, solver->am1_rels) : INT64_MAX);
     for (int i = 0; i < goal_ps.size(); i++) {
         Lit relax = goal_ps[i];
         SCIP_Real weight = tolong(goal_Cs[i] * solver->goal_gcd);
@@ -344,7 +348,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
         MY_SCIP_CALL(SCIPsetObjlimit(scip_solver->scip, MS_ubound)); 
         obj_limit_applied = true;
       }
-      if (solver->LB_goalvalue > 0) {
+      if (solver->LB_goalvalue > 0 && scip_solver->gbmo_remain_goal_ps.size() == 0) {
         MS_lbound = SCIP_Real(tolong(solver->LB_goalvalue * solver->goal_gcd - scip_solver->obj_offset));
         MY_SCIP_CALL(SCIPupdateLocalDualbound(scip_solver->scip, MS_lbound));
         if (obj_limit_applied) bound_gap = tolong(solver->best_goalvalue - solver->LB_goalvalue);
@@ -362,7 +366,11 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
         assert(sol != nullptr);
         // MY_SCIP_CALL(SCIPprintSol(scip_solver->scip, sol, nullptr, FALSE));
         SCIP_Bool feasible = FALSE;
+        SCIP_Real oldfeastol = SCIPfeastol(scip_solver->scip);
+        if (solver->declared_intsize > 0 && solver->declared_intsize < 49)
+            MY_SCIP_CALL(SCIPchgFeastol(scip_solver->scip, min(oldfeastol,pow(0.5, solver->declared_intsize)))); 
         MY_SCIP_CALL(SCIPcheckSolOrig(scip_solver->scip, sol, &feasible, FALSE, FALSE));
+        MY_SCIP_CALL(SCIPchgFeastol(scip_solver->scip, oldfeastol));
         if (!feasible) { found_opt = l_Undef; goto clean_and_return; }
 
         best_value = scip_solver->obj_offset + long(round(SCIPgetSolOrigObj(scip_solver->scip, sol)));
@@ -379,7 +387,16 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
             try_again = true;
         }
     } else if (status == SCIP_STATUS_INFEASIBLE) {
-        if (obj_limit_applied) { // SCIP proved optimality of the last MaxSAT o-value 
+        if (scip_solver->gbmo_remain_goal_ps.size() > 0) { // process a next GBMO objective
+            std::lock_guard<std::mutex> lck(optsol_mtx);
+            if (scip_solver->gbmo_goal_best_val < WEIGHT_MAX) {
+                best_value = scip_solver->obj_offset + 
+                    tolong(scip_solver->gbmo_goal_best_val * solver->goal_gcd);
+            } else best_value = INT64_MAX; 
+            found_opt = l_Undef;
+            scip_solver->gbmo_change_objective(solver, best_value);
+            try_again = true;
+        } else if (obj_limit_applied) { // SCIP proved optimality of the last MaxSAT o-value 
             if (!solver->ipamir_used || opt_verbosity > 0) {
                 reportf("SCIP proved optimality of the last o-value\n");
                 solver->printStats(true);
@@ -432,7 +449,11 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                 std::lock_guard<std::mutex> lck(optsol_mtx);
                 Int scip_sol = (scip_solver->obj_offset + int64_t(round(SCIPgetSolOrigObj(scip_solver->scip, sol))))/gcd;
                 SCIP_Bool feasible = FALSE;
+                SCIP_Real oldfeastol = SCIPfeastol(scip_solver->scip);
+                if (solver->declared_intsize > 0 && solver->declared_intsize < 49)
+                    MY_SCIP_CALL(SCIPchgFeastol(scip_solver->scip, min(oldfeastol, pow(0.5, solver->declared_intsize)))); 
                 MY_SCIP_CALL(SCIPcheckSolOrig(scip_solver->scip, sol, &feasible, FALSE, FALSE));
+                MY_SCIP_CALL(SCIPchgFeastol(scip_solver->scip, oldfeastol));
                 if (feasible && scip_sol < solver->best_goalvalue) {
                     for (Var x = 0; x < (int)scip_solver->vars.size(); x++)
                         if (scip_solver->vars[x] != nullptr) {
@@ -476,6 +497,7 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
                   double(ubound - lbound)/max(int64_t(1),max(abs(lbound),abs(ubound))) < 0.10 &&
                   ubound - lbound < bound_gap)) {
                 try_count--; opt_scip_cpu += opt_scip_cpu_add;
+                if (opt_scip_cpu > opt_cpu_lim) opt_scip_cpu = opt_cpu_lim;
                 bound_gap = ubound - lbound;
                 MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", opt_scip_cpu));
                 //MY_SCIP_CALL(SCIPrestartSolve(scip_solver->scip));
@@ -489,7 +511,10 @@ lbool scip_solve_async(ScipSolver *scip_solver, MsSolver *solver)
         }
         if (opt_scip_cpu == 0 && !scip_solver->interrupted) {
             if (!SCIPisInfinity(scip_solver->scip, primb)) saveFixedVariables(scip_solver, solver);
-            MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", 1e+20));
+            if (opt_cpu_lim == INT32_MAX)
+                MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", 1e+20));
+            else
+                MY_SCIP_CALL(SCIPsetRealParam(scip_solver->scip, "limits/time", opt_cpu_lim));
             try_again = true;
         }
     }
@@ -572,7 +597,7 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
 {
     extern double opt_scip_cpu, opt_scip_cpu_add, opt_scip_delay;
     extern int    opt_mem_lim;
-    extern bool opt_force_scip;
+    extern bool opt_force_scip, opt_scip_parallel;
 
     if (scip_solver.scip != nullptr) return l_Undef;
 
@@ -597,8 +622,9 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
     if (opt_input != nullptr) base = strrchr(opt_input,'/'), base = (base ? base+1 : opt_input); 
     MY_SCIP_CALL(SCIPcreateProbBasic(scip, (base != nullptr ? base : "IPAMIR of UWrMaxSat")));
     MY_SCIP_CALL(SCIPsetEmphasis(scip, SCIP_PARAMEMPHASIS_DEFAULT, TRUE));
+    if (opt_cpu_lim != INT32_MAX && opt_scip_cpu > opt_cpu_lim) opt_scip_cpu = opt_cpu_lim;
     if (opt_scip_cpu > 0) {
-        if (opt_scip_cpu >= 2 * opt_scip_cpu_add) {
+        if (opt_scip_cpu >= 2 * opt_scip_cpu_add && opt_scip_parallel) {
             scip_solver.must_be_restarted = true;
             opt_scip_cpu -= opt_scip_cpu_add;
         }
@@ -609,14 +635,11 @@ lbool MsSolver::scip_init(ScipSolver &scip_solver, int sat_orig_vars)
         MY_SCIP_CALL(SCIPsetRealParam(scip, "limits/memory", opt_mem_lim / 2.0));
     if (opt_verbosity <= 1)
         MY_SCIP_CALL(SCIPsetIntParam(scip, "display/verblevel", 0));
-    MY_SCIP_CALL(SCIPsetIntParam(scip, "misc/usesymmetry", 0));
-    //MY_SCIP_CALL(SCIPsetBoolParam(scip, "propagating/symmetry/usedynamicprop", FALSE));
     if (declared_intsize > 0 && declared_intsize < 49) {
         SCIP_Real feastol, newfeastol = pow(0.5,min(declared_intsize,29)), epsilon, sumepsilon;
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/feastol", &feastol));
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/epsilon", &epsilon));
         MY_SCIP_CALL(SCIPgetRealParam(scip, "numerics/sumepsilon", &sumepsilon));
-        MY_SCIP_CALL(SCIPsetIntParam(scip, "propagating/genvbounds/timingmask", 1));
         if (newfeastol < feastol)
             MY_SCIP_CALL(SCIPsetRealParam(scip, "numerics/feastol", newfeastol));
         if (newfeastol < epsilon)
@@ -729,6 +752,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
     {
         vec<Lit> goal_ps;
         vec<Int> goal_Cs;
+        Int sumCs = 0;
         int last = (!opt_maxsat ? soft_cls.size() : top_for_strat);
         for (int i = 0; i < last; ++i)
         {
@@ -737,7 +761,7 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             Lit   relax = ps.last();
             if (ps.size() > 1 && !opt_wbo || ps.size() == 1 && scip_solver.is_indvar.at(var(relax)))
                 relax = ~relax;
-            goal_ps.push(relax); goal_Cs.push(weight_ps.fst);
+            goal_ps.push(relax); goal_Cs.push(weight_ps.fst); sumCs += weight_ps.fst;
             int idx = -1;
             if (set_scip_var(scip_solver.scip, this, scip_solver.vars, relax, idx) == l_False)
                 return l_False;
@@ -755,6 +779,24 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
                     reportf("%s ", x); xfree(x);
                 }
                 reportf("]\n");
+            }
+            {   Int lower_bound = LB_goalvalue - fixed_goalval - harden_goalval;
+                int j = 0;
+                for (int i = 0; i < goal_Cs.size(); i++)
+                    if (sumCs - goal_Cs[i] < lower_bound || value(goal_ps[i]) == l_True) {
+                        Var v = var(goal_ps[i]);
+                        lbool val = (sign(goal_ps[i]) ? l_False : l_True);
+                        if (v < (int)scip_solver.vars.size() && scip_solver.vars[v] != nullptr) {
+                            SCIP_Bool infeasible = false, fixed = false;
+                            SCIP_Real fixedval = (scip_solver.is_indvar.at(v) ? val != l_True : val == l_True);
+                            MY_SCIP_CALL(SCIPfixVar(scip_solver.scip, scip_solver.vars[v], fixedval,
+                                    &infeasible, &fixed));
+                        }
+                    } else if (value(goal_ps[i]) == l_Undef) { 
+                        if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i];
+                        j++;
+                    }
+                if (j < goal_ps.size()) goal_ps.shrink(goal_ps.size() - j), goal_Cs.shrink(goal_Cs.size() - j);
             }
             Int gbmo_remain_weight; // not needed in this context
             if (min_weight != WEIGHT_MAX && Int(min_weight) >= goal_Cs.last()) {
@@ -775,6 +817,8 @@ lbool MsSolver::scip_solve(const Minisat::vec<Lit> *assump_ps,
             weight_t weight = toweight(goal_Cs[i]);
             if (set_var_coef(goal_ps[i], weight) == l_False) return l_False;
         }
+        scip_solver.gbmo_goal_best_val = (best_goalvalue < WEIGHT_MAX ?
+                evalPsCs(goal_ps, goal_Cs, best_model, am1_rels) : INT64_MAX);
     }
 
     if (opt_verbosity >= 2) {

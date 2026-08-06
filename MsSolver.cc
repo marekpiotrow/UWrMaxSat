@@ -474,7 +474,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         propagate();
 #ifdef USE_SCIP
         if (opt_use_scip_slvr && declared_intsize <= std::numeric_limits<double>::digits - 6 &&
-                constrs.size() < 600000 && soft_cls.size() < 10000) {
+                constrs.size() < 600000 && soft_cls.size() < 100000) {
             opt_force_scip = true;
             scip_init(scip_solver, sat_solver.nVars());
             scip_solver.pb_decision_problem = pb_decision_problem;
@@ -1030,7 +1030,7 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         } else harden_soft_cls(assump_ps, assump_Cs, sorted_assump_Cs, delayed_assump, delayed_assump_sum);
         if (opt_minimization == 0 || best_goalvalue - LB_goalvalue < opt_seq_thres) {
             opt_minimization = 0;
-            assump_lit = (assump_ps.size() == 0 ? lit_Undef : mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
+            assump_lit = (assump_ps.size() == 0 && gbmo_remain_goal_ps.size() == 0 ? lit_Undef : mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
             try_lessthan = best_goalvalue;
             if (scip_foundUB && scip_UB < try_lessthan) try_lessthan = scip_UB + 1;
         } else {
@@ -1148,7 +1148,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if ((LB_goalvalue == best_goalvalue ||
                 satisfied && best_goalvalue - LB_goalvalue < gbmo_remain_weight) &&
                 (opt_minimization != 1 || last_soft_in_best_model <= last_soft_in_queue)) {
-            if (opt_minimization >= 1 && opt_verbosity >= 2) print_LB(true); 
+            if (opt_minimization >= 1 && opt_verbosity >= 2)
+                print_LB((scip_foundLB ? scip_LB : Int_MIN), true); 
             break;
         }
 
@@ -1244,7 +1245,8 @@ void MsSolver::maxsat_solve(solve_Command cmd)
         if (opt_minimization >= 1 && opt_verbosity >= 2) {
             char *t; reportf("LB: %s, assump. size: %d, stratif. level: %d (cls: %d, wght: %s), conflicts: %lu\n", t=toString(LB_goalvalue * goal_gcd),
                     assump_ps.size(), sorted_assump_Cs.size(), top_for_strat, toString(sorted_assump_Cs.size() > 0 ? sorted_assump_Cs.last() : 0), sat_solver.conflicts); xfree(t); }
-        if (opt_minimization == 2 && opt_verbosity == 1 && use_base_assump) print_LB(true);
+        if (opt_minimization == 2 && opt_verbosity == 1 && use_base_assump)
+            print_LB((scip_foundLB ? scip_LB : Int_MIN), true);
 SwitchSearchMethod:
         if (opt_minimization == 1 && opt_to_bin_search && LB_goalvalue + 5 < UB_goalvalue &&
             cpuTime() >= opt_unsat_cpu + start_solving_cpu && sat_solver.conflicts >= opt_unsat_conflicts) {
@@ -1288,12 +1290,17 @@ SwitchSearchMethod:
                 for (int i = 0; i < am1_rels.size(); i++)
                     goal_ps.push(~am1_rels[i].lit), goal_Cs.push(am1_rels[i].weight),
                         sumCs += goal_Cs.last();
-                {   Int lower_bound = LB_goalvalue-fixed_goalval-harden_goalval; int j = 0;
+                {   Int lower_bound = (scip_foundLB ? max(scip_LB, LB_goalvalue) : LB_goalvalue)
+                                         - fixed_goalval - harden_goalval;
+                    int j = 0;
                     for (int i = 0; i < goal_Cs.size(); i++)
-                        if (sumCs - goal_Cs[i] < lower_bound) {
+                        if (sumCs - goal_Cs[i] < lower_bound || value(goal_ps[i]) == l_True) {
                             if (!harden_lits.has(goal_ps[i])) top_for_hard--;
                             addUnitClause(goal_ps[i]), harden_goalval += goal_Cs[i];
-                        } else { if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i]; j++; }
+                        } else if (value(goal_ps[i]) == l_Undef) { 
+                            if (j < i) goal_ps[j] = goal_ps[i], goal_Cs[j] = goal_Cs[i];
+                            j++;
+                        }
                     if (j < goal_ps.size()) goal_ps.shrink(goal_ps.size() - j), goal_Cs.shrink(goal_Cs.size() - j);
                 }
                 top_for_strat = 0; sorted_assump_Cs.clear(); harden_lits.clear();
@@ -1319,7 +1326,7 @@ SwitchSearchMethod:
                 if (satisfied) {
                     try_lessthan = best_goalvalue;
                     if (scip_foundUB && scip_UB < try_lessthan) try_lessthan = scip_UB + 1;
-                    assump_lit = (assump_ps.size() == 0 ? lit_Undef :
+                    assump_lit = (assump_ps.size() == 0 && gbmo_remain_goal_ps.size() == 0 ? lit_Undef :
                                                           mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
                     if (assump_lit != lit_Undef && !use_base_assump) assump_ps.push(assump_lit), assump_Cs.push(try_lessthan);
                     if (gbmo_goalval > 0)
@@ -1332,11 +1339,11 @@ SwitchSearchMethod:
             }
         }
       }
-      if (opt_minimization >= 1 && opt_verbosity >= 1) print_LB();
+      if (opt_minimization >= 1 && opt_verbosity >= 1) print_LB(scip_foundLB ? scip_LB : Int_MIN);
     } // END OF LOOP: while(1)
       if (gbmo_remain_goal_ps.size() == 0 || !satisfied) break;
 
-      try_lessthan = best_goalvalue - fixed_goalval - harden_goalval - gbmo_goalval;
+      try_lessthan = evalPsCs(goal_ps, goal_Cs, best_model, am1_rels);
       assump_lit = lit_Undef;
       if (!addConstr(goal_ps, goal_Cs, try_lessthan, -1, assump_lit))
           break; // unsat
@@ -1360,7 +1367,7 @@ SwitchSearchMethod:
       Int diff = fixed_goalval + harden_goalval + gbmo_goalval;
       if (gbmo_goalval > 0)
           gbmo_goalval = evalPsCs(gbmo_remain_goal_ps, gbmo_remain_goal_Cs, best_model, am1_rels);
-      assump_lit = (assump_ps.size() == 0 ? lit_Undef :
+      assump_lit = (assump_ps.size() == 0 && gbmo_remain_goal_ps.size() == 0 ? lit_Undef :
               mkLit(sat_solver.newVar(VAR_UPOL, !opt_branch_pbvars), true));
       if (!addConstr(goal_ps, goal_Cs, try_lessthan - diff, -2, assump_lit))
           break; // unsat

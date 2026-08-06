@@ -43,8 +43,8 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
 4. build the SCIP solver library (if you want to use it)  
     * 4.1 get sources of scipoptsuite from https://scipopt.org/index.php#download  
     * 4.2 untar and build a static library it:  
-        tar zxf scipoptsuite-10.0.2.tgz  
-        cd scipoptsuite-10.0.2  
+        tar zxf scipoptsuite-10.0.3.tgz  
+        cd scipoptsuite-10.0.3  
         mkdir build && cd build  
         cmake -DSYM=snauty -DSHARED=off -DNO_EXTERNAL_CODE=on -DSOPLEX=on -DGMP=on -DMPFR=on -DBOOST=on -DTPI=tny ..  
         cmake --build . --config Release --target libscip libsoplex-pic  
@@ -73,7 +73,7 @@ Since version 1.7.0 the default SAT solver is changed to CaDiCaL by Armin Biere.
    - To build a dynamic library you have to compile the static libraries above with the compiler option -fPIC  
      and, in the last step, replace 'make r' with 'make lsh'. The compiler option can be added to the steps above  
      as follows:  
-       (2) The SAT solver ./configure script should be run with the added option: --shared  
+       (2) The CaDiCaL SAT solver add CXXFLAGS=-fPIC at the beginning of the line containg ./configure  
        (3) The MaxPre Makefile should be modified with: sed -i 's/-g/-fPIC -D NDEBUG/' src/Makefile  
        (4) Add the following option to the first line starting with cmake:    
            -DSCIP_COMP_OPTIONS=-fPIC  

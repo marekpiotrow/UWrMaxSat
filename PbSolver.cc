@@ -777,7 +777,7 @@ void PbSolver::solve(solve_Command cmd)
         if (assump_lit != lit_Undef && !use_base_assump) assump_ps.push(assump_lit);
         convertPbs(false);
       }         
-      if (opt_minimization >= 1 && opt_verbosity >= 1) print_LB();
+      if (opt_minimization >= 1 && opt_verbosity >= 1) print_LB(Int_MIN);
     } // END OF LOOP
 
     if (goal == NULL && sat)
